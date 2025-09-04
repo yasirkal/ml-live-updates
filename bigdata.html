@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Big Data — Live Articles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0b1020; --card:#121a33; --muted:#a9b1c7; --ink:#e8edff; --accent:#7cc4ff; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(1200px 800px at 15% 10%, #0f1b3d 0, #0b1020 60%), var(--bg);
+      color: var(--ink); padding: 28px 18px 60px;
+    }
+    header { max-width: 1100px; margin: 0 auto 18px; display: grid; gap: 10px; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: .2px; }
+    .sub { color: var(--muted); font-size: 14px }
+    .controls {
+      display: grid; gap: 10px; grid-template-columns: 1fr 220px; align-items: center;
+    }
+    input[type="search"] {
+      width: 100%; padding: 12px 14px; background: #0e1530; color: var(--ink);
+      border: 1px solid #1d2a54; border-radius: 10px; outline: none;
+    }
+    select {
+      width: 100%; padding: 12px 14px; background: #0e1530; color: var(--ink);
+      border: 1px solid #1d2a54; border-radius: 10px;
+    }
+    .grid {
+      max-width: 1100px; margin: 14px auto 0;
+      display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    article {
+      background: linear-gradient(180deg, #111a36, #0e1530);
+      border: 1px solid #1b2650; border-radius: 14px; padding: 14px; transition: transform .08s ease;
+    }
+    article:hover { transform: translateY(-2px); }
+    a.title {
+      color: var(--ink); text-decoration: none; font-weight: 600; display: inline-block; margin-bottom: 6px;
+    }
+    .meta { font-size: 12px; color: var(--muted); display:flex; gap:8px; flex-wrap:wrap; }
+    .tag { font-size: 11px; padding: 2px 8px; border: 1px solid #263469; border-radius: 999px; color: #cfe4ff; }
+    .footer { color: var(--muted); text-align:center; margin-top: 18px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Big Data — Live Articles</h1>
+    <div class="sub">Fresh posts from reputable data-engineering sources (AWS, Google Cloud, Azure, Cloudera, Confluent, Snowflake devs, Trino, ClickHouse, Uber, Airbnb, Databricks docs, etc.).</div>
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search titles… (e.g. Spark, Kafka, Iceberg)" />
+      <select id="sourceFilter">
+        <option value="">All sources</option>
+      </select>
+    </div>
+  </header>
+
+  <main class="grid" id="grid" aria-live="polite"></main>
+  <div class="footer" id="status">Loading…</div>
+
+<script>
+const PROXY_BASE = "https://rss-proxy.yasirkaleem.workers.dev/"; // your Cloudflare Worker
+
+// Curated, reliable feeds (RSS/Atom)
+const FEEDS = [
+  { name: "AWS Big Data Blog",             url: "https://aws.amazon.com/blogs/big-data/feed/" },
+  { name: "Google Cloud — Data Analytics", url: "https://cloudblog.withgoogle.com/products/data-analytics/rss/" },
+  { name: "Microsoft Azure Blog",          url: "https://azure.microsoft.com/en-us/blog/feed/" },
+  { name: "Confluent Blog",                url: "https://www.confluent.io/rss.xml" },
+  { name: "Uber Engineering",              url: "https://www.uber.com/blog/engineering/rss/" },
+  { name: "Airbnb Tech Blog",              url: "https://airbnb.tech/feed/" },
+  { name: "ClickHouse Blog",               url: "https://clickhouse.com/rss.xml" },
+  { name: "Cloudera Blog",                 url: "https://www.cloudera.com/api/www/blog-feed?locale=en_US" },
+  { name: "Trino Blog",                    url: "https://trino.io/blog/feed.xml" },
+  { name: "Snowflake Developers (news)",   url: "https://developers.snowflake.com/feed/?post_type=news-items" },
+  { name: "Databricks Docs (release notes)", url: "https://docs.databricks.com/aws/en/feed.xml" }
+];
+
+// Basic in-memory cache while the page is open
+const cache = new Map();
+
+function proxyUrl(raw) {
+  return `${PROXY_BASE}?url=${encodeURIComponent(raw)}`;
+}
+
+function parseDate(str) {
+  // Try RSS pubDate, Atom updated/published, or fallback
+  if (!str) return null;
+  const d = new Date(str);
+  return isNaN(d) ? null : d;
+}
+
+function timeAgo(d) {
+  if (!d) return "";
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60); if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24); if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString();
+}
+
+async function fetchFeed(feed) {
+  const url = proxyUrl(feed.url);
+  if (cache.has(url)) return cache.get(url);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { "x-fetch": "rss" }});
+    const txt = await res.text();
+    const xml = new DOMParser().parseFromString(txt, "text/xml");
+
+    // RSS <item> or Atom <entry>
+    const items = Array.from(xml.querySelectorAll("item, entry")).map(node => {
+      const isAtom = node.tagName.toLowerCase() === "entry";
+      const title = (node.querySelector("title")?.textContent || "").trim();
+      let link = node.querySelector("link")?.textContent?.trim() || "";
+      if (isAtom) {
+        // Atom <link href="...">
+        const href = node.querySelector("link[rel='alternate']")?.getAttribute("href")
+                  || node.querySelector("link")?.getAttribute("href");
+        if (href) link = href;
+      }
+      const dateStr = node.querySelector("pubDate")?.textContent
+                   || node.querySelector("updated")?.textContent
+                   || node.querySelector("published")?.textContent;
+      const date = parseDate(dateStr);
+      const feedTitle = xml.querySelector("channel > title, feed > title")?.textContent?.trim();
+      return { title, link, date, src: feed.name || feedTitle || "Source" };
+    }).filter(x => x.title && x.link);
+
+    cache.set(url, items);
+    return items;
+  } catch (e) {
+    console.warn("Feed failed:", feed.name, e);
+    return [];
+  } finally { clearTimeout(t); }
+}
+
+function render(list) {
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  list.forEach(item => {
+    const el = document.createElement("article");
+    el.innerHTML = `
+      <a class="title" href="${item.link}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.title)}</a>
+      <div class="meta">
+        <span class="tag">${escapeHtml(item.src)}</span>
+        <span>•</span>
+        <span>${item.date ? timeAgo(item.date) : ""}</span>
+      </div>`;
+    frag.appendChild(el);
+  });
+  grid.appendChild(frag);
+  document.getElementById("status").textContent = list.length ? `Showing ${list.length} posts` : "No results.";
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+
+async function init() {
+  // Build source filter options
+  const sel = document.getElementById("sourceFilter");
+  FEEDS.forEach(f => {
+    const o = document.createElement("option");
+    o.value = f.name; o.textContent = f.name;
+    sel.appendChild(o);
+  });
+
+  // Fetch all feeds in parallel
+  document.getElementById("status").textContent = "Fetching feeds…";
+  const results = (await Promise.all(FEEDS.map(fetchFeed))).flat();
+
+  // Sort by newest first, keep a sane count
+  results.sort((a,b) => (b.date?.getTime()||0) - (a.date?.getTime()||0));
+  const MASTER = results.slice(0, 80); // cap
+
+  // Wire up filtering
+  const q = document.getElementById("q");
+  function apply() {
+    const term = q.value.trim().toLowerCase();
+    const src  = sel.value;
+    const filtered = MASTER.filter(x =>
+      (!src || x.src === src) &&
+      (!term || x.title.toLowerCase().includes(term))
+    );
+    render(filtered);
+  }
+  q.addEventListener("input", apply);
+  sel.addEventListener("change", apply);
+
+  render(MASTER);
+}
+
+init();
+</script>
+</body>
+</html>
