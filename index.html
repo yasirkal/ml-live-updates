@@ -1,191 +1,147 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ML Research — arXiv (with diagnostics)</title>
-<style>
-  :root{--bg:#0b1020;--card:#121933;--muted:#9aa3c7;--text:#e6ebff;--accent:#6ea8fe;--ok:#69d18c;--warn:#ffcc66;--err:#ff7a7a}
-  *{box-sizing:border-box} html,body{height:100%} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0c1428 40%,#0b1020);color:var(--text)}
-  header{position:sticky;top:0;z-index:5;background:rgba(11,16,32,.7);backdrop-filter:blur(10px);border-bottom:1px solid #1b2648}
-  .wrap{max-width:980px;margin:0 auto;padding:16px}
-  h1{margin:.2rem 0 0;font-size:clamp(1.2rem,2.8vw,1.6rem);font-weight:700}.sub{color:var(--muted);font-size:.95rem}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
-  .controls > *{background:#121933;border:1px solid #1b2648;color:var(--text);padding:10px 12px;border-radius:12px}
-  button{cursor:pointer;background:linear-gradient(180deg,#2b59ff,#365cff);border-color:#2b59ff}
-  input[type="search"]{outline:none;min-width:220px}
-  #feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:18px 0 70px}
-  article{background:#121933;border:1px solid #1b2648;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
-  a{color:#cfe0ff;text-decoration:none}.title{font-weight:650;line-height:1.25}
-  .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:.9rem}.src{color:#6ea8fe;font-weight:600}.desc{color:#c9d3ff;font-size:.95rem}
-  .diag{margin-top:10px;background:#101733;border:1px solid #23355f;border-radius:12px;padding:12px}
-  .diag h3{margin:0 0 6px 0;font-size:1rem}
-  .row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-top:1px dashed #26345c}
-  .row:first-of-type{border-top:none}
-  .badge{padding:2px 8px;border-radius:999px;font-size:.8rem}
-  .ok{background:rgba(105,209,140,.15);color:#69d18c;border:1px solid rgba(105,209,140,.35)}
-  .warn{background:rgba(255,204,102,.15);color:#ffcc66;border:1px solid rgba(255,204,102,.35)}
-  .err{background:rgba(255,122,122,.15);color:#ff7a7a;border:1px solid rgba(255,122,122,.35)}
-  footer{position:fixed;bottom:0;left:0;right:0;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-top:1px solid #1b2648}
-  .foot{display:flex;gap:10px;justify-content:space-between;align-items:center}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ML / AI — Live Articles</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#111826;--muted:#9fb1c7;--text:#e8f0fb;--accent:#3ba9ff}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Inter,Arial}
+    header{max-width:1100px;margin:28px auto 8px;padding:0 16px}
+    h1{font-size:26px;margin:0 0 6px}
+    .sub{color:var(--muted);font-size:14px}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:1100px;margin:10px auto 60px;padding:0 16px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+    .card{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 6px 14px rgba(0,0,0,.25)}
+    .src{font-size:12px;color:var(--muted)}
+    .title{font-weight:700;margin:6px 0 4px}
+    .desc{color:#cfe0f7;font-size:14px}
+    .meta{display:flex;gap:10px;margin-top:8px;color:var(--muted);font-size:12px}
+    .thumb{width:100%;height:150px;object-fit:cover;border-radius:10px;margin:6px 0;display:none}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 18px}
+    select,button{background:#0f1520;color:var(--text);border:1px solid #1e2a3d;border-radius:10px;padding:8px 12px}
+    .error{color:#ffb4b4}
+  </style>
 </head>
 <body>
-<header>
+  <header>
+    <h1>ML / AI — Live Articles</h1>
+    <div class="sub">Hand-picked reliable sources (blogs & journals). Updates are fetched through your Cloudflare Worker.</div>
+  </header>
+
   <div class="wrap">
-    <h1>ML Research — Latest arXiv</h1>
-    <div class="sub">Uses your Cloudflare Worker proxy for reliable cross-origin fetching. Diagnostics below will show any errors.</div>
     <div class="controls">
-      <button id="refreshBtn">⟳ Refresh</button>
-      <input id="q" type="search" placeholder="Filter titles (e.g. diffusion, LLM, ViT)" />
-      <span id="countPill" class="badge warn">0 items</span>
+      <label>Source:
+        <select id="sourceFilter"></select>
+      </label>
+      <button id="refreshBtn">Refresh</button>
+      <span id="status" class="sub"></span>
     </div>
-
-    <div id="diag" class="diag">
-      <h3>Diagnostics</h3>
-      <div id="diagRows"></div>
-    </div>
+    <div id="grid" class="grid"></div>
+    <div id="err" class="error"></div>
   </div>
-</header>
 
-<main class="wrap">
-  <section id="feed" aria-live="polite" aria-busy="false"></section>
-</main>
+  <script>
+  const PROXY_BASE = "https://rss-proxy.yasirkaleem.workers.dev/"; // your Worker
 
-<footer>
-  <div class="wrap foot">
-    <div id="status" class="sub">Idle</div>
-    <div id="lastUpdated" class="sub">Last updated — never</div>
-  </div>
-</footer>
-
-<script>
-  // ====== HARD-CODED PROXY (your Worker) — no trailing slash ======
-  const PROXY_BASE = 'https://rss-proxy.yasirkaleem.workers.dev';
-  // ================================================================
-
-  // Feeds (reliable, arXiv only)
+  // Mostly-articles from reputable ML/AI sources
   const FEEDS = [
-    { name:'arXiv · cs.LG', url:'https://export.arxiv.org/rss/cs.LG' },
-    { name:'arXiv · cs.AI', url:'https://export.arxiv.org/rss/cs.AI' },
-    { name:'arXiv · cs.CL', url:'https://export.arxiv.org/rss/cs.CL' },
-    { name:'arXiv · stat.ML', url:'https://export.arxiv.org/rss/stat.ML' }
+    {name:"Google AI (The Keyword)", url:"https://blog.google/technology/ai/rss/"},             // :contentReference[oaicite:0]{index=0}
+    {name:"Google Research Blog",     url:"https://research.google/blog/rss/"},                  // :contentReference[oaicite:1]{index=1}
+    {name:"DeepMind Blog",            url:"https://deepmind.google/blog/rss.xml"},               // :contentReference[oaicite:2]{index=2}
+    {name:"Microsoft Research Blog",  url:"https://www.microsoft.com/en-us/research/feed/"},     // :contentReference[oaicite:3]{index=3}
+    {name:"BAIR (Berkeley) Blog",     url:"https://bair.berkeley.edu/blog/feed.xml"},            // :contentReference[oaicite:4]{index=4}
+    {name:"The Gradient",             url:"https://thegradient.pub/rss/"},                       // :contentReference[oaicite:5]{index=5}
+    {name:"Nature Machine Intelligence", url:"https://www.nature.com/natmachintell.rss"},        // :contentReference[oaicite:6]{index=6}
+    {name:"Nature — Machine Learning (subject)", url:"https://www.nature.com/subjects/machine-learning.rss"}, // :contentReference[oaicite:7]{index=7}
+    {name:"Allen Institute for AI (AI2)", url:"https://allenai.org/rss.xml"},                    // :contentReference[oaicite:8]{index=8}
+    {name:"NVIDIA Developer Blog",    url:"https://developer.nvidia.com/blog/feed"},             // :contentReference[oaicite:9]{index=9}
+    {name:"Meta Research",            url:"https://research.facebook.com/feed/"}                 // :contentReference[oaicite:10]{index=10}
+    // optional research feed (uncomment if you want): {name:"arXiv: cs.LG", url:"https://export.arxiv.org/rss/cs.LG"}
   ];
 
-  const el = s => document.querySelector(s);
-  const feedEl = el('#feed'), qEl = el('#q'), statusEl = el('#status'),
-        countPill = el('#countPill'), lastUpdatedEl = el('#lastUpdated'),
-        diagRows = el('#diagRows');
+  const MAX_ITEMS_PER_FEED = 8;   // keep signal high
+  const MAX_TOTAL_ITEMS     = 60;
 
-  function row(name, badge, msg){
-    const d = document.createElement('div'); d.className = 'row';
-    d.innerHTML = `<div>${name}</div><div class="badge ${badge}">${msg}</div>`;
-    diagRows.appendChild(d);
-  }
+  const sourceSel = document.getElementById('sourceFilter');
+  const grid = document.getElementById('grid');
+  const statusEl = document.getElementById('status');
+  const errEl = document.getElementById('err');
+  const refreshBtn = document.getElementById('refreshBtn');
 
-  function esc(s=''){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-  function timeAgo(d){ const s=Math.floor((Date.now()-d.getTime())/1000); const m=[[31536000,'yr'],[2592000,'mo'],[604800,'wk'],[86400,'d'],[3600,'h'],[60,'m']]; for (const [x,l] of m){const v=Math.floor(s/x); if(v>=1) return v+l+' ago';} return 'just now'; }
+  FEEDS.forEach((f,i)=>{
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = f.name;
+    sourceSel.appendChild(opt);
+  });
+  // "All sources" option
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all'; allOpt.textContent = 'All sources';
+  sourceSel.insertBefore(allOpt, sourceSel.firstChild);
+  sourceSel.value = 'all';
 
-  async function fetchViaProxy(url){
-    const r = await fetch(`${PROXY_BASE}/?url=${encodeURIComponent(url)}`, { cache:'no-store' });
-    if (!r.ok) throw new Error(`proxy HTTP ${r.status}`);
-    return await r.text();
-  }
-  async function fetchViaJina(url){ // fallback only for debugging
-    const u = 'https://r.jina.ai/http://' + url.replace(/^https?:\/\//i,'');
-    const r = await fetch(u, { cache:'no-store' });
-    if (!r.ok) throw new Error(`jina HTTP ${r.status}`);
-    return await r.text();
-  }
+  refreshBtn.addEventListener('click', load);
+  sourceSel.addEventListener('change', load);
 
-  function parseItems(xmlString, sourceName){
-    const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
-    const isAtom = !!doc.querySelector('feed > entry');
-    const nodes = isAtom ? [...doc.querySelectorAll('feed > entry')]
-                         : [...doc.querySelectorAll('rss > channel > item, rdf\\:RDF > item, item')];
-    const out = [];
-    for (const n of nodes){
-      const title = n.querySelector('title')?.textContent?.trim() || '(no title)';
-      let link = '';
-      if (isAtom){
-        const a = [...n.querySelectorAll('link')].find(x => !x.getAttribute('rel') || x.getAttribute('rel')==='alternate');
-        link = a?.getAttribute('href') || '';
-      } else {
-        link = n.querySelector('link')?.textContent?.trim() || '';
+  function proxied(u){ return PROXY_BASE + "?url=" + encodeURIComponent(u); }
+
+  async function load(){
+    errEl.textContent = "";
+    statusEl.textContent = "Loading…";
+    grid.innerHTML = "";
+
+    const chosen = sourceSel.value === 'all' ? FEEDS : [FEEDS[Number(sourceSel.value)]];
+    let items = [];
+
+    for (const feed of chosen){
+      try{
+        const res = await fetch(proxied(feed.url));
+        if(!res.ok) throw new Error(`${feed.name} → HTTP ${res.status}`);
+        const text = await res.text();
+        const parsed = new window.DOMParser().parseFromString(text, "text/xml");
+
+        const entries = [...parsed.querySelectorAll("item, entry")].slice(0, MAX_ITEMS_PER_FEED).map(n=>{
+          const title = (n.querySelector("title")?.textContent || "").trim();
+          const link = (n.querySelector("link")?.getAttribute("href") || n.querySelector("link")?.textContent || "").trim();
+          const desc = (n.querySelector("description, summary, content")?.textContent || "").replace(/<[^>]+>/g,"").trim();
+          const date = new Date(
+            n.querySelector("pubDate, updated, published, dc\\:date")?.textContent || Date.now()
+          );
+          const media = n.querySelector("media\\:content, content, media\\:thumbnail, enclosure");
+          const img = media?.getAttribute("url") || "";
+          return {source: feed.name, title, link, desc, date, img};
+        });
+
+        items.push(...entries);
+      }catch(e){
+        console.error(e);
+        errEl.textContent += `\n• ${feed.name}: ${e.message}`;
       }
-      const dateTxt = (isAtom ? (n.querySelector('updated, published')?.textContent)
-                              : (n.querySelector('pubDate, dc\\:date, date')?.textContent)) || '';
-      const d = dateTxt ? new Date(dateTxt) : new Date(0);
-      const desc = (n.querySelector('description, summary, content\\:encoded')?.textContent || '').replace(/<[^>]+>/g,'').trim();
-      out.push({ title, link, date: isNaN(+d)?new Date(0):d, source: sourceName, desc });
     }
-    return out;
+
+    items = items
+      .filter(it=>it.title && it.link)
+      .sort((a,b)=>b.date - a.date)
+      .slice(0, MAX_TOTAL_ITEMS);
+
+    for (const it of items){
+      const card = document.createElement('div'); card.className = 'card';
+      const src  = document.createElement('div'); src.className = 'src'; src.textContent = it.source;
+      const a    = document.createElement('a'); a.className = 'title'; a.href = it.link; a.target = "_blank"; a.rel="noopener"; a.textContent = it.title;
+      const img  = document.createElement('img'); img.className='thumb';
+      if (it.img){ img.src = it.img; img.onload=()=>{ img.style.display='block'; }; }
+      const desc = document.createElement('div'); desc.className = 'desc'; desc.textContent = it.desc.slice(0,220) + (it.desc.length>220 ? "…" : "");
+      const meta = document.createElement('div'); meta.className='meta'; meta.textContent = it.date.toLocaleString();
+
+      card.append(src,a,img,desc,meta);
+      grid.appendChild(card);
+    }
+    statusEl.textContent = `Showing ${items.length} item(s) from ${sourceSel.value==='all' ? FEEDS.length : 1} source(s).`;
   }
 
-  function render(items){
-    const q = qEl.value.trim().toLowerCase();
-    const filtered = q ? items.filter(i => (i.title+' '+i.desc).toLowerCase().includes(q)) : items;
-    countPill.textContent = `${filtered.length} item${filtered.length!==1?'s':''}`;
-    feedEl.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    for (const i of filtered){
-      const art = document.createElement('article');
-      art.innerHTML = `
-        <a class="title" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>
-        <div class="meta"><span class="src">${esc(i.source)}</span> · <span title="${i.date.toLocaleString()}">${timeAgo(i.date)}</span></div>
-        ${i.desc ? `<div class="desc">${esc(i.desc).slice(0,240)}${i.desc.length>240?'…':''}</div>` : '' }
-      `;
-      frag.appendChild(art);
-    }
-    feedEl.appendChild(frag);
-  }
-
-  async function loadAll(){
-    statusEl.textContent = 'Fetching…';
-    feedEl.setAttribute('aria-busy','true');
-    diagRows.innerHTML = '';
-    try{
-      const settled = await Promise.allSettled(FEEDS.map(async f => {
-        try{
-          const xml = await fetchViaProxy(f.url);
-          row(f.name, 'ok', 'proxy ok');
-          return parseItems(xml, f.name);
-        }catch(e1){
-          row(f.name, 'err', e1.message);
-          // Fallback try once (so you still get items while we debug)
-          try{
-            const xml2 = await fetchViaJina(f.url);
-            row(f.name + ' (fallback)', 'warn', 'using r.jina.ai');
-            return parseItems(xml2, f.name);
-          }catch(e2){
-            row(f.name + ' (fallback)', 'err', e2.message);
-            return [];
-          }
-        }
-      }));
-
-      const all = settled.flatMap(r => r.status==='fulfilled' ? r.value : []);
-      const seen = new Set(), uniq = [];
-      for (const it of all){
-        const key = (it.link || it.title).toLowerCase();
-        if (!seen.has(key)){ seen.add(key); uniq.push(it); }
-      }
-      uniq.sort((a,b)=>b.date - a.date);
-      window.__ALL_ITEMS = uniq;
-      render(uniq);
-      lastUpdatedEl.textContent = 'Last updated — ' + new Date().toLocaleString();
-      statusEl.textContent = 'Up to date';
-    }catch(e){
-      console.error(e);
-      statusEl.textContent = 'Error loading feeds';
-    }finally{
-      feedEl.setAttribute('aria-busy','false');
-    }
-  }
-
-  document.getElementById('refreshBtn').addEventListener('click', loadAll);
-  qEl.addEventListener('input', () => render(window.__ALL_ITEMS||[]));
-  loadAll();
-</script>
+  load();
+  </script>
 </body>
 </html>
