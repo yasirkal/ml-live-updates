@@ -1,247 +1,57 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Machine Learning — Live Updates</title>
-  <style>
-    :root{--bg:#0b1020;--card:#121933;--muted:#97a0bf;--text:#e6ebff;--accent:#6ea8fe;--ok:#69d18c;--warn:#ffcc66;--err:#ff7a7a}
-    *{box-sizing:border-box} html,body{height:100%}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Inter,'Helvetica Neue',Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0c1428 40%,#0b1020);color:var(--text)}
-    header{position:sticky;top:0;z-index:5;background:rgba(11,16,32,.7);backdrop-filter:blur(10px);border-bottom:1px solid #1b2648}
-    .wrap{max-width:1100px;margin:0 auto;padding:16px}
-    h1{margin:.2rem 0 0;font-size:clamp(1.2rem,2.8vw,1.6rem);font-weight:700}
-    .sub{color:var(--muted);font-size:.95rem}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
-    .controls>*{background:var(--card);border:1px solid #1b2648;color:var(--text);padding:10px 12px;border-radius:12px}
-    button{cursor:pointer} button.primary{background:linear-gradient(180deg,#2b59ff,#365cff);border-color:#2b59ff}
-    input[type="search"],input[type="url"],select{outline:none}
-    input[type="search"]{min-width:220px}
-    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid #23355f;background:#0e1630;color:var(--muted);font-size:.85rem}
-    .sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-    #feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:18px 0 70px}
-    article{background:var(--card);border:1px solid #1b2648;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform .08s,box-shadow .08s}
-    article:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(2,6,23,.25)}
-    .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:.9rem}
-    .src{color:var(--accent);font-weight:600}
-    .desc{color:#c9d3ff;font-size:.95rem}
-    .tags{display:flex;flex-wrap:wrap;gap:6px}
-    .tag{font-size:.75rem;padding:4px 8px;border-radius:999px;border:1px solid #24345d;color:#c5ceef}
-    footer{position:fixed;bottom:0;left:0;right:0;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-top:1px solid #1b2648}
-    .foot{display:flex;gap:10px;justify-content:space-between;align-items:center}
-    .status{display:flex;gap:10px;align-items:center;color:var(--muted)}
-    .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)} .dot.ok{background:var(--ok)} .dot.err{background:var(--err)}
-    a{color:inherit;text-decoration:none} a.link{color:#cfe0ff}
-    .sr-only{position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px)}
-    details{margin-top:8px}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ML Research — Latest arXiv</title>
+<style>
+  :root{--bg:#0b1020;--card:#121933;--muted:#9aa3c7;--text:#e6ebff;--accent:#6ea8fe}
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0c1428 40%,#0b1020);color:var(--text)}
+  header{position:sticky;top:0;z-index:5;background:rgba(11,16,32,.7);backdrop-filter:blur(10px);border-bottom:1px solid #1b2648}
+  .wrap{max-width:1000px;margin:0 auto;padding:16px}
+  h1{margin:.2rem 0 0;font-size:clamp(1.2rem,2.8vw,1.6rem);font-weight:700}
+  .sub{color:var(--muted);font-size:.95rem}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .controls > *{background:#121933;border:1px solid #1b2648;color:var(--text);padding:10px 12px;border-radius:12px}
+  button{cursor:pointer;background:linear-gradient(180deg,#2b59ff,#365cff);border-color:#2b59ff}
+  #feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:18px 0 70px}
+  article{background:#121933;border:1px solid #1b2648;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
+  a{color:#cfe0ff;text-decoration:none}
+  .title{font-weight:650;line-height:1.25}
+  .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:.9rem}
+  .src{color:var(--accent);font-weight:600}
+  .desc{color:#c9d3ff;font-size:.95rem}
+  footer{position:fixed;bottom:0;left:0;right:0;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-top:1px solid #1b2648}
+  .foot{display:flex;gap:10px;justify-content:space-between;align-items:center}
+  .pill{padding:6px 10px;border:1px solid #23355f;border-radius:999px;color:#9aa3c7}
+</style>
 </head>
 <body>
 <header>
   <div class="wrap">
-    <h1>Machine Learning — Live Updates</h1>
-    <div class="sub">Latest research, news & articles from arXiv, Nature, DeepMind, Google AI, OpenAI, Microsoft Research, etc.</div>
-    <div class="controls" role="group" aria-label="Controls">
-      <button id="refreshBtn" class="primary" title="Refresh now">⟳ Refresh</button>
-      <label><span class="sr-only">Auto-refresh</span>
-        <select id="intervalSel" title="Auto-refresh frequency">
-          <option value="0">Auto-refresh: Off</option>
-          <option value="120000">Every 2 min</option>
-          <option value="300000" selected>Every 5 min</option>
-          <option value="900000">Every 15 min</option>
-          <option value="1800000">Every 30 min</option>
-        </select>
-      </label>
-      <input id="q" type="search" placeholder="Filter by keyword (e.g. diffusion, LLM, CNN)" />
+    <h1>ML Research — Latest arXiv</h1>
+    <div class="sub">Reliable, minimal feed: arXiv cs.LG, cs.AI, cs.CL, stat.ML (via a CORS-friendly mirror).</div>
+    <div class="controls">
+      <button id="refreshBtn">⟳ Refresh</button>
+      <input id="q" type="search" placeholder="Filter titles (e.g. diffusion, LLM, ViT)" />
       <span class="pill" id="countPill">0 items</span>
     </div>
-    <div class="controls" id="proxyCtl">
-      <input id="proxyInput" type="url" placeholder="Optional proxy endpoint (e.g. https://your-worker.example.com/rss)" />
-      <button id="saveProxy">Use proxy</button>
-      <button id="clearProxy">Clear proxy</button>
-    </div>
-    <div class="sources" id="sources"></div>
   </div>
 </header>
 
 <main class="wrap">
   <section id="feed" aria-live="polite" aria-busy="false"></section>
-  <details>
-    <summary class="pill">If items don’t appear: set your own proxy or use the built-in fallback</summary>
-    <p class="sub">Use the box above to set a proxy (Cloudflare Worker or Node). Without that, this page tries AllOrigins, then a robust fallback (r.jina.ai) per feed.</p>
-  </details>
 </main>
 
 <footer>
   <div class="wrap foot">
-    <div class="status"><span class="dot" id="netDot"></span><span id="statusText">Idle</span></div>
+    <div id="status" class="sub">Idle</div>
     <div id="lastUpdated" class="sub">Last updated — never</div>
   </div>
 </footer>
 
 <script>
-  // ------------------- SOURCES -------------------
+  // -------- Ultra-reliable minimal sources (arXiv only) --------
   const FEEDS = [
-    { name:'arXiv · cs.LG', url:'https://export.arxiv.org/rss/cs.LG', tags:['research','arxiv'] },
-    { name:'arXiv · cs.AI', url:'https://export.arxiv.org/rss/cs.AI', tags:['research','arxiv'] },
-    { name:'arXiv · cs.CL', url:'https://export.arxiv.org/rss/cs.CL', tags:['research','arxiv','nlp'] },
-    { name:'arXiv · stat.ML', url:'https://export.arXiv.org/rss/stat.ML', tags:['research','arxiv'] },
-    { name:'Nature · Machine Learning', url:'https://www.nature.com/subjects/machine-learning.rss', tags:['journal','nature'] },
-    { name:'Nature Machine Intelligence', url:'https://www.nature.com/natmachintell.rss', tags:['journal','nature'] },
-    { name:'Google DeepMind Blog', url:'https://deepmind.google/blog/rss.xml', tags:['lab','deepmind'] },
-    { name:'Google AI Blog', url:'https://blog.google/technology/ai/rss/', tags:['lab','google'] },
-    { name:'OpenAI Blog', url:'https://openai.com/blog/rss.xml', tags:['lab','openai'] },
-    { name:'Microsoft Research', url:'https://www.microsoft.com/en-us/research/feed/', tags:['lab','microsoft'] }
-    // You can add news: TechCrunch AI, VentureBeat AI; some networks block bots, so start with these.
-  ];
-
-  // ------------------- DOM refs -------------------
-  const el = s => document.querySelector(s);
-  const feedEl = el('#feed'), qEl = el('#q'), countPill = el('#countPill');
-  const statusText = el('#statusText'), netDot = el('#netDot'), sourcesEl = el('#sources');
-  const lastUpdatedEl = el('#lastUpdated');
-  let timer = null;
-  FEEDS.forEach(f => { const chip = document.createElement('span'); chip.className='pill'; chip.textContent=f.name; sourcesEl.appendChild(chip); });
-
-  // ------------------- Proxy settings -------------------
-  let PROXY_BASE = localStorage.getItem('rssProxy') || '';
-  el('#saveProxy').addEventListener('click', () => {
-    const v = el('#proxyInput').value.trim();
-    if (v){ PROXY_BASE = v.replace(/\/$/, ''); localStorage.setItem('rssProxy', PROXY_BASE); loadAll(); }
-  });
-  el('#clearProxy').addEventListener('click', () => {
-    PROXY_BASE = ''; localStorage.removeItem('rssProxy'); el('#proxyInput').value=''; loadAll();
-  });
-  const savedProxy = localStorage.getItem('rssProxy'); if (savedProxy) el('#proxyInput').value = savedProxy;
-
-  // ------------------- Fetch helpers with fallbacks -------------------
-  const CORS_PROXY = 'https://api.allorigins.win/get?url='; // returns JSON { contents }
-  async function fetchRSS(url){
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 15000);
-
-    // 1) Your proxy
-    if (PROXY_BASE){
-      try{
-        const r = await fetch(`${PROXY_BASE}?url=${encodeURIComponent(url)}`, { signal: controller.signal });
-        clearTimeout(t);
-        if (!r.ok) throw new Error('proxy HTTP ' + r.status);
-        return await r.text();
-      }catch(e){ console.warn('Proxy failed:', e); }
-    }
-
-    // 2) AllOrigins
-    try{
-      const r = await fetch(CORS_PROXY + encodeURIComponent(url), { signal: controller.signal });
-      if (r.ok){
-        const data = await r.json();
-        clearTimeout(t);
-        if (data?.contents) return data.contents;
-      }
-      throw new Error('AllOrigins HTTP ' + r.status);
-    }catch(e){ console.warn('AllOrigins failed:', e); }
-
-    // 3) Robust fallback: r.jina.ai (fetches raw HTML/XML with permissive CORS)
-    // It prefers target via HTTP path; convert https:// to http:// safely.
-    try{
-      const httpUrl = url.replace(/^https:\/\//i,'http://');
-      const fallback = `https://r.jina.ai/http://${httpUrl.replace(/^https?:\/\//i,'')}`;
-      const r = await fetch(fallback, { signal: controller.signal });
-      clearTimeout(t);
-      if (!r.ok) throw new Error('jina HTTP ' + r.status);
-      return await r.text();
-    }catch(e){
-      clearTimeout(t);
-      throw e;
-    }
-  }
-
-  function parseItems(xmlString, sourceName){
-    const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
-    const isAtom = !!doc.querySelector('feed > entry');
-    const items = [];
-    const list = isAtom ? [...doc.querySelectorAll('feed > entry')]
-                        : [...doc.querySelectorAll('rss > channel > item, rdf\\:RDF > item, item')];
-    for (const it of list){
-      const title = it.querySelector('title')?.textContent?.trim() || '(no title)';
-      let link = '';
-      if (isAtom){
-        const linkEl = [...it.querySelectorAll('link')].find(a => !a.getAttribute('rel') || a.getAttribute('rel')==='alternate');
-        link = linkEl?.getAttribute('href') || '';
-      } else {
-        link = it.querySelector('link')?.textContent?.trim() || '';
-      }
-      const dateTxt = (isAtom ? (it.querySelector('updated, published')?.textContent)
-                              : (it.querySelector('pubDate, dc\\:date, date')?.textContent)) || '';
-      const d = dateTxt ? new Date(dateTxt) : new Date(0);
-      const rawDesc = (it.querySelector('description, content\\:encoded, summary')?.textContent || '')
-                        .replace(/<[^>]+>/g,'').trim();
-      items.push({ title, link, date: isNaN(+d) ? new Date(0) : d, source: sourceName, desc: rawDesc });
-    }
-    return items;
-  }
-
-  function timeAgo(d){
-    const secs = Math.floor((Date.now()-d.getTime())/1000);
-    const map = [[31536000,'yr'],[2592000,'mo'],[604800,'wk'],[86400,'d'],[3600,'h'],[60,'m']];
-    for (const [s,l] of map){ const v=Math.floor(secs/s); if (v>=1) return `${v}${l} ago`; }
-    return 'just now';
-  }
-  const esc = s => (s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-
-  function render(items){
-    const q = qEl.value.trim().toLowerCase();
-    const filtered = q ? items.filter(i => (i.title+' '+i.desc+' '+i.source).toLowerCase().includes(q)) : items;
-    countPill.textContent = `${filtered.length} item${filtered.length!==1?'s':''}`;
-    feedEl.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    filtered.forEach(i => {
-      const a = document.createElement('article');
-      a.innerHTML = `
-        <a class="title link" href="${esc(i.link)}" target="_blank" rel="noopener noreferrer">${esc(i.title)}</a>
-        <div class="meta"><span class="src">${esc(i.source)}</span> · <span title="${i.date.toLocaleString()}">${timeAgo(i.date)}</span></div>
-        ${i.desc ? `<div class="desc">${esc(i.desc).slice(0,240)}${i.desc.length>240?'…':''}</div>`:''}
-      `;
-      frag.appendChild(a);
-    });
-    feedEl.appendChild(frag);
-  }
-
-  function setBusy(b,msg){ feedEl.setAttribute('aria-busy', String(b)); statusText.textContent = msg; }
-
-  async function loadAll(){
-    setBusy(true,'Fetching feeds…'); netDot.className='dot';
-    try{
-      const all = (await Promise.allSettled(FEEDS.map(async f => {
-        try{
-          const xml = await fetchRSS(f.url);
-          return parseItems(xml, f.name);
-        }catch(e){ console.warn('Source failed:', f.name, e); return []; }
-      }))).flatMap(r => r.status==='fulfilled' ? r.value : []);
-      const uniq = []; const seen = new Set();
-      for (const it of all){ const key=(it.link||it.title).toLowerCase(); if(!seen.has(key)){ seen.add(key); uniq.push(it); } }
-      uniq.sort((a,b)=>b.date - a.date);
-      window.__ALL_ITEMS = uniq; render(uniq);
-      lastUpdatedEl.textContent = 'Last updated — ' + new Date().toLocaleString();
-      setBusy(false,'Up to date'); netDot.className='dot ok';
-    }catch(e){
-      console.error(e); setBusy(false,'Error fetching feeds'); netDot.className='dot err';
-    }
-  }
-
-  el('#refreshBtn').addEventListener('click', loadAll);
-  qEl.addEventListener('input', ()=>render(window.__ALL_ITEMS||[]));
-  const intervalEl = el('#intervalSel');
-  intervalEl.addEventListener('change', e => {
-    if (timer) clearInterval(timer);
-    const ms = +e.target.value; localStorage.setItem('mlInterval', String(ms));
-    if (ms>0) timer = setInterval(loadAll, ms);
-  });
-  const savedInterval = localStorage.getItem('mlInterval'); if (savedInterval) intervalEl.value=savedInterval;
-
-  // Initial
-  loadAll();
-  const ms0 = +intervalEl.value; if (ms0>0) timer = setInterval(loadAll, ms0);
-</script>
-</body>
-</html>
+    { name:'
