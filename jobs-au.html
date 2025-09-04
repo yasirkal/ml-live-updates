@@ -1,142 +1,110 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>AU Tech Jobs — AI • Big Data • Security • Software • Cloud</title>
-<style>
-  :root{--bg:#0b1020;--card:#111a33;--muted:#9fb1c7;--text:#e7efff;--accent:#7cc4ff}
-  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Inter,Roboto,Arial}
-  header{max-width:1100px;margin:24px auto 10px;padding:0 16px}
-  h1{margin:0 0 6px;font-size:26px}
-  .sub{color:var(--muted);font-size:14px}
-  .toolbar{max-width:1100px;margin:10px auto;padding:0 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  select,input,button{background:#0e1530;color:var(--text);border:1px solid #1e2a4d;border-radius:10px;padding:8px 12px}
-  button{cursor:pointer}
-  .tabs{max-width:1100px;margin:6px auto 0;padding:0 16px;display:flex;gap:8px;flex-wrap:wrap}
-  .tab{padding:8px 12px;border:1px solid #25376a;border-radius:999px;background:#0e1530;color:#cfe2ff;cursor:pointer}
-  .tab.active{background:#193063;color:#fff;border-color:#2d4d9b}
-  .grid{max-width:1100px;margin:14px auto 40px;padding:0 16px;display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-  article{background:var(--card);border:1px solid #1b2753;border-radius:14px;padding:14px}
-  .title{font-weight:700;color:#eaf3ff;text-decoration:none}
-  .meta{margin-top:6px;color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap}
-  .desc{margin-top:8px;color:#cfe0f7;font-size:14px}
-  .foot{max-width:1100px;margin:0 auto 30px;padding:0 16px;color:var(--muted);font-size:12px}
-  .err{color:#ffb4b4}
-</style>
+  <meta charset="utf-8" />
+  <title>AU Tech Jobs — Live Feed</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#0b1220;color:#e9eef7}
+    header{padding:24px 16px;text-align:center;border-bottom:1px solid #1b2435}
+    header h1{margin:0;font-size:22px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+    select,input,button{background:#0f172a;border:1px solid #23304a;color:#e9eef7;border-radius:10px;padding:10px}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    .grid{display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:14px}
+    @media(min-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media(min-width:1040px){.grid{grid-template-columns:repeat(3,1fr)}}
+    .card{background:#0f172a;border:1px solid #23304a;border-radius:16px;padding:14px}
+    .title{font-weight:600;font-size:16px;margin:0 0 6px}
+    .meta{font-size:12px;opacity:.85;margin-bottom:10px}
+    .badge{display:inline-block;background:#16233b;border:1px solid #274062;color:#b8d3ff;font-size:11px;padding:4px 8px;border-radius:999px;margin-right:6px}
+    .footer{padding:16px;text-align:center;opacity:.7}
+    a{color:#9cc4ff;text-decoration:none}
+    a:hover{text-decoration:underline}
+    .empty{opacity:.7;text-align:center;padding:28px}
+    .spinner{width:28px;height:28px;border:3px solid #2a3a56;border-top-color:#9cc4ff;border-radius:50%;animation:spin 1s linear infinite;margin:20px auto}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
 <body>
-<header>
-  <h1>AU Tech Jobs</h1>
-  <div class="sub">Live listings for Australia via your Cloudflare Worker (Adzuna API).</div>
-</header>
+  <header>
+    <h1>Australia • AI / Big Data / Cybersecurity / Software / Cloud</h1>
+    <div class="controls">
+      <select id="preset">
+        <option value="">All tech roles (default)</option>
+        <option value="AI,Machine Learning,Deep Learning,GenAI,ML">AI & ML</option>
+        <option value="Big Data,Data Engineer,Data Scientist">Big Data</option>
+        <option value="Cybersecurity,Security Engineer,SOC,AppSec,Infosec">Cybersecurity</option>
+        <option value="Software Engineer,Backend,Frontend,Full Stack">Software Engineering</option>
+        <option value="Cloud,AWS,GCP,Azure,DevOps,SRE,Kubernetes">Cloud & Platform</option>
+      </select>
+      <input id="search" placeholder="Optional extra keywords (comma separated)" />
+      <button id="go">Refresh</button>
+    </div>
+  </header>
 
-<div class="toolbar">
-  <label>State/Location:
-    <select id="where">
-      <option value="Australia">All Australia</option>
-      <option>NSW</option><option>VIC</option><option>QLD</option>
-      <option>WA</option><option>SA</option><option>ACT</option>
-      <option>TAS</option><option>NT</option>
-    </select>
-  </label>
-  <label>Limit:
-    <select id="limit">
-      <option>20</option><option>40</option><option>60</option>
-    </select>
-  </label>
-  <input id="q" placeholder="Filter titles (e.g. Sydney, Python, SOC)"/>
-  <button id="refresh">Refresh</button>
-  <span id="status" class="sub"></span>
-</div>
+  <div class="wrap">
+    <div id="status" class="empty">Loading jobs…</div>
+    <div id="grid" class="grid" style="display:none;"></div>
+  </div>
 
-<div class="tabs" id="tabs"></div>
-<main class="grid" id="grid" aria-live="polite"></main>
-<div class="foot">
-  <div id="error" class="err"></div>
-  <div id="updated" class="sub"></div>
-</div>
+  <div class="footer">Powered by official job-board APIs + Careerjet</div>
 
 <script>
-const WORKER = "https://rss-proxy.yasirkaleem.workers.dev"; // your Worker base
-const CATS = [
-  {key:"ai",       label:"AI / ML"},
-  {key:"bigdata",  label:"Big Data"},
-  {key:"security", label:"Cybersecurity"},
-  {key:"software", label:"Software Eng"},
-  {key:"cloud",    label:"Cloud / DevOps"}
-];
+const WORKER_BASE = "https://rss-proxy.yasirkaleem.workers.dev"; // ← your Worker origin
+const PROVIDERS = "careerjet,lever,greenhouse,ashby"; // add ",recruitee" later if you populate it
 
-const tabs = document.getElementById('tabs');
-const grid = document.getElementById('grid');
-const statusEl = document.getElementById('status');
-const errEl = document.getElementById('error');
-const updatedEl = document.getElementById('updated');
-const whereSel = document.getElementById('where');
-const limitSel = document.getElementById('limit');
-const qEl = document.getElementById('q');
+const $preset = document.getElementById("preset");
+const $search = document.getElementById("search");
+const $go = document.getElementById("go");
+const $grid = document.getElementById("grid");
+const $status = document.getElementById("status");
 
-let ACTIVE = CATS[0].key;
-let MASTER = [];
+async function load() {
+  $grid.style.display = "none";
+  $grid.innerHTML = "";
+  $status.innerHTML = `<div class="spinner"></div> Fetching fresh roles…`;
 
-function makeTabs(){
-  tabs.innerHTML = '';
-  for (const c of CATS){
-    const b = document.createElement('button');
-    b.className = 'tab' + (c.key===ACTIVE?' active':'');
-    b.textContent = c.label;
-    b.onclick = () => { ACTIVE = c.key; [...tabs.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); load(); };
-    tabs.appendChild(b);
-  }
-}
+  // Build q= keywords (preset + custom)
+  const parts = [];
+  if ($preset.value) parts.push($preset.value);
+  if ($search.value.trim()) parts.push($search.value.trim());
+  const q = encodeURIComponent(parts.join(","));
 
-function esc(s=''){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function timeAgo(d){
-  const t = (Date.now()-d.getTime())/1000;
-  return t<60?`${t|0}s ago`: t<3600?`${(t/60)|0}m ago`: t<86400?`${(t/3600)|0}h ago` : d.toLocaleDateString();
-}
-
-async function fetchJobs(cat){
-  const where = whereSel.value || 'Australia';
-  const limit = limitSel.value || '20';
-  const url = `${WORKER}/jobs?cat=${encodeURIComponent(cat)}&where=${encodeURIComponent(where)}&limit=${encodeURIComponent(limit)}`;
-  const r = await fetch(url, { cache: 'no-store' });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return (await r.json()).items || [];
-}
-
-function render(list){
-  const term = qEl.value.trim().toLowerCase();
-  const shown = term ? list.filter(i => (i.title+' '+i.company+' '+i.location).toLowerCase().includes(term)) : list;
-
-  grid.innerHTML = '';
-  for (const j of shown){
-    const el = document.createElement('article');
-    const salary = (j.salary_min||j.salary_max) ? ` • $${(j.salary_min||j.salary_max).toLocaleString()}+` : '';
-    el.innerHTML = `
-      <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">${esc(j.title)}</a>
-      <div class="meta">${esc(j.company||'')}${j.company&&j.location?' • ':''}${esc(j.location||'')}${salary} • ${j.created?timeAgo(new Date(j.created)):''}</div>
-      <div class="desc">${esc((j.desc||'').replace(/\s+/g,' ').slice(0,220))}${(j.desc||'').length>220?'…':''}</div>`;
-    grid.appendChild(el);
-  }
-  statusEl.textContent = `Showing ${shown.length} job(s) — ${whereSel.value}`;
-  updatedEl.textContent = 'Last updated — ' + new Date().toLocaleString();
-}
-
-async function load(){
-  errEl.textContent = ''; statusEl.textContent = 'Loading…'; grid.innerHTML = '';
+  const url = `${WORKER_BASE}/jobs-au?providers=${encodeURIComponent(PROVIDERS)}${q ? `&q=${q}` : ""}`;
   try {
-    const items = await fetchJobs(ACTIVE);
-    MASTER = items.sort((a,b)=> new Date(b.created) - new Date(a.created));
-    render(MASTER);
+    const r = await fetch(url, { cache: "no-store" });
+    const jobs = await r.json();
+
+    if (!Array.isArray(jobs) || jobs.length === 0) {
+      $status.textContent = "No roles found for Australia with the current filters. Try another preset or clear custom keywords.";
+      return;
+    }
+
+    $status.textContent = "";
+    $grid.style.display = "grid";
+
+    for (const j of jobs) {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="badge">${(j.provider||"").toUpperCase()}</div>
+        <h3 class="title"><a href="${j.url}" target="_blank" rel="noopener">${escapeHTML(j.title||"")}</a></h3>
+        <div class="meta">${escapeHTML(j.company||"")} • ${escapeHTML(j.location||"Australia")}</div>
+        <div class="meta">${j.date ? new Date(j.date).toLocaleDateString() : ""}</div>
+      `;
+      $grid.appendChild(card);
+    }
   } catch (e) {
-    errEl.textContent = 'Error: ' + e.message + (e.message.includes('Missing ADZUNA') ? ' — add your Adzuna keys in the Worker settings.' : '');
-  } finally { /* no-op */ }
+    console.error(e);
+    $status.textContent = "Couldn’t load jobs (network or API error).";
+  }
 }
 
-document.getElementById('refresh').onclick = load;
-qEl.oninput = ()=>render(MASTER);
-makeTabs(); load();
+function escapeHTML(s){return (s||"").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]))}
+
+$go.addEventListener("click", load);
+window.addEventListener("load", load);
 </script>
 </body>
 </html>
