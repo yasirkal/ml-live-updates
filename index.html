@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Machine Learning — Live Updates</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#121933; --muted:#97a0bf; --text:#e6ebff; --accent:#6ea8fe; --ok:#69d18c; --warn:#ffcc66; --err:#ff7a7a;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Inter,'Helvetica Neue',Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0c1428 40%,#0b1020 100%);color:var(--text)}
+    header{position:sticky;top:0;z-index:5;background:rgba(11,16,32,.7);backdrop-filter:blur(10px);border-bottom:1px solid #1b2648}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:.2rem 0 0;font-size:clamp(1.2rem,2.8vw,1.6rem);font-weight:700;letter-spacing:.2px}
+    .sub{color:var(--muted);font-size:.95rem}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+    .controls > *{background:var(--card);border:1px solid #1b2648;color:var(--text);padding:10px 12px;border-radius:12px}
+    button{cursor:pointer}
+    button.primary{background:linear-gradient(180deg,#2b59ff,#365cff);border-color:#2b59ff}
+    select,input[type="search"],input[type="url"]{outline:none}
+    input[type="search"]{min-width:220px}
+
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid #23355f;background:#0e1630;color:var(--muted);font-size:.85rem}
+    .sources{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+    .filters{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .filters label{display:inline-flex;align-items:center;gap:6px}
+    .filters input[type="checkbox"]{accent-color:#6ea8fe}
+
+    #feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:18px 0 70px}
+    article{background:var(--card);border:1px solid #1b2648;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform .08s ease, box-shadow .08s ease}
+    article:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(2,6,23,.25)}
+    .title{font-weight:650;line-height:1.25}
+    .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:.9rem}
+    .src{color:var(--accent);font-weight:600}
+    .ago{font-variant-numeric:tabular-nums}
+    .desc{color:#c9d3ff;font-size:.95rem}
+    .tags{display:flex;flex-wrap:wrap;gap:6px}
+    .tag{font-size:.75rem;padding:4px 8px;border-radius:999px;border:1px solid #24345d;color:#c5ceef}
+
+    footer{position:fixed;bottom:0;left:0;right:0;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-top:1px solid #1b2648}
+    .foot{display:flex;gap:10px;justify-content:space-between;align-items:center}
+    .status{display:flex;gap:10px;align-items:center;color:var(--muted)}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--warn)}
+    .dot.ok{background:var(--ok)}
+    .dot.err{background:var(--err)}
+    a{color:inherit;text-decoration:none}
+    a.link{color:#cfe0ff}
+    .sr-only{position:absolute!important;height:1px;width:1px;overflow:hidden;clip:rect(1px,1px,1px,1px)}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Machine Learning — Live Updates</h1>
+      <div class="sub">Latest research, news and articles. Feeds include arXiv, Nature, DeepMind, OpenAI, TechCrunch, VentureBeat, and more.</div>
+      <div class="controls" role="group" aria-label="Controls">
+        <button id="refreshBtn" class="primary" title="Refresh now">⟳ Refresh</button>
+        <label><span class="sr-only">Auto-refresh</span>
+          <select id="intervalSel" title="Auto-refresh frequency">
+            <option value="0">Auto‑refresh: Off</option>
+            <option value="120000">Every 2 min</option>
+            <option value="300000" selected>Every 5 min</option>
+            <option value="900000">Every 15 min</option>
+            <option value="1800000">Every 30 min</option>
+          </select>
+        </label>
+        <input id="q" type="search" placeholder="Filter by keyword (e.g. diffusion, LLM, CNN)" />
+        <span class="pill" id="countPill">0 items</span>
+      </div>
+
+      <div class="sources" id="sources"></div>
+
+      <div class="filters" id="filters" role="group" aria-label="Category filters">
+        <label class="pill"><input type="checkbox" data-cat="research" checked> Research</label>
+        <label class="pill"><input type="checkbox" data-cat="journals" checked> Journals</label>
+        <label class="pill"><input type="checkbox" data-cat="labs" checked> Labs</label>
+        <label class="pill"><input type="checkbox" data-cat="news" checked> News</label>
+        <label class="pill"><input type="checkbox" data-cat="community" checked> Community</label>
+      </div>
+
+      <div class="controls" id="proxyCtl">
+        <input id="proxyInput" type="url" placeholder="Optional proxy endpoint (e.g. https://your-worker.example.com/rss)" />
+        <button id="saveProxy">Use proxy</button>
+        <button id="clearProxy">Clear proxy</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="feed" aria-live="polite" aria-busy="false"></section>
+
+    <section id="help" style="margin-bottom:90px">
+      <details style="margin-top:8px">
+        <summary class="pill">Optional: set up your own RSS proxy (Cloudflare Worker or Node)</summary>
+        <p class="sub">Deploy one of the snippets below and paste its URL (e.g. <code>https://your-worker.example.com/rss</code>) into the box above. This improves reliability and avoids client-side CORS limits.</p>
+        <h3>Cloudflare Worker (copy into <code>worker.js</code>)</h3>
+        <pre><code>export default {
+  async fetch(request) {
+    const u = new URL(request.url);
+    const target = u.searchParams.get('url');
+    if (!target) return new Response('Missing url', { status: 400 });
+    const r = await fetch(target, { headers: { 'User-Agent': 'ml-feed-proxy' } });
+    const txt = await r.text();
+    return new Response(txt, {
+      status: 200,
+      headers: {
+        'content-type': r.headers.get('content-type') || 'application/xml; charset=utf-8',
+        'access-control-allow-origin': '*',
+        'cache-control': 'public, max-age=60, s-maxage=300'
+      }
+    });
+  }
+}</code></pre>
+
+        <h3>Node (Express)</h3>
+        <pre><code>import express from 'express';
+import fetch from 'node-fetch';
+const app = express();
+app.get('/rss', async (req, res) => {
+  const url = req.query.url;
+  if (!url) return res.status(400).send('Missing url');
+  const r = await fetch(url, { headers: { 'User-Agent': 'ml-feed-proxy' }});
+  const txt = await r.text();
+  res.set('Access-Control-Allow-Origin', '*');
+  res.type(r.headers.get('content-type') || 'application/xml');
+  res.set('Cache-Control', 'public, max-age=60');
+  res.send(txt);
+});
+app.listen(process.env.PORT || 8787);</code></pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div class="status"><span class="dot" id="netDot"></span><span id="statusText">Idle</span></div>
+      <div id="lastUpdated" class="sub">Last updated — never</div>
+    </div>
+  </footer>
+
+  <script>
+    // ==================== CONFIG ====================
+    const FEEDS = [
+      // ——— Research (arXiv)
+      { name: 'arXiv · cs.LG', url: 'https://export.arxiv.org/rss/cs.LG', tags:['research','arxiv'], cat:'research' },
+      { name: 'arXiv · cs.AI', url: 'https://export.arxiv.org/rss/cs.AI', tags:['research','arxiv'], cat:'research' },
+      { name: 'arXiv · cs.CL', url: 'https://export.arxiv.org/rss/cs.CL', tags:['research','arxiv','nlp'], cat:'research' },
+      { name: 'arXiv · stat.ML', url: 'https://export.arxiv.org/rss/stat.ML', tags:['research','arxiv'], cat:'research' },
+
+      // ——— Journals
+      { name: 'Nature · Machine Learning', url: 'https://www.nature.com/subjects/machine-learning.rss', tags:['journal','nature'], cat:'journals' },
+      { name: 'Nature Machine Intelligence', url: 'https://www.nature.com/natmachintell.rss', tags:['journal','nature'], cat:'journals' },
+
+      // ——— Lab blogs / research orgs
+      { name: 'Google DeepMind Blog', url: 'https://deepmind.google/blog/rss.xml', tags:['lab','deepmind'], cat:'labs' },
+      { name: 'Google AI Blog', url: 'https://blog.google/technology/ai/rss/', tags:['lab','google'], cat:'labs' },
+      { name: 'OpenAI Blog', url: 'https://openai.com/blog/rss.xml', tags:['lab','openai'], cat:'labs' },
+      { name: 'Microsoft Research', url: 'https://www.microsoft.com/en-us/research/feed/', tags:['lab','microsoft'], cat:'labs' },
+
+      // ——— News sites
+      { name: 'TechCrunch · AI', url: 'https://techcrunch.com/category/artificial-intelligence/feed/', tags:['news'], cat:'news' },
+      { name: 'VentureBeat · AI', url: 'https://venturebeat.com/category/ai/feed/', tags:['news'], cat:'news' },
+
+      // ——— Community
+      { name: 'Reddit · r/MachineLearning', url: 'https://www.reddit.com/r/MachineLearning/.rss', tags:['community'], cat:'community' }
+    ];
+
+    // Public CORS proxy (fallback) for client‑side RSS fetches
+    let PROXY_BASE = localStorage.getItem('rssProxy') || '';
+    const CORS_PROXY = 'https://api.allorigins.win/get?url='; // returns { contents, status }
+
+    const el = sel => document.querySelector(sel);
+    const feedEl = el('#feed');
+    const qEl = el('#q');
+    const countPill = el('#countPill');
+    const statusText = el('#statusText');
+    const netDot = el('#netDot');
+    const sourcesEl = el('#sources');
+    const lastUpdatedEl = el('#lastUpdated');
+
+    // Category state & persistence
+    const defaultCats = { research:true, journals:true, labs:true, news:true, community:true };
+    let catState = (() => { try { return JSON.parse(localStorage.getItem('mlCats')) || defaultCats; } catch { return defaultCats; } })();
+    function saveCats(){ localStorage.setItem('mlCats', JSON.stringify(catState)); }
+    function initFilters(){
+      document.querySelectorAll('#filters [data-cat]').forEach(cb => {
+        const cat = cb.getAttribute('data-cat');
+        cb.checked = !!catState[cat];
+        cb.addEventListener('change', (e) => { catState[cat] = e.target.checked; saveCats(); filterRender(); });
+      });
+    }
+
+    // Render source chips
+    FEEDS.forEach(f => {
+      const chip = document.createElement('span');
+      chip.className = 'pill';
+      chip.textContent = f.name;
+      sourcesEl.appendChild(chip);
+    });
+
+    let timer = null;
+    const intervalEl = el('#intervalSel');
+    intervalEl.addEventListener('change', (e) => {
+      if (timer) clearInterval(timer);
+      const ms = +e.target.value;
+      localStorage.setItem('mlInterval', String(ms));
+      if (ms > 0) timer = setInterval(loadAll, ms);
+    });
+    const savedInterval = localStorage.getItem('mlInterval');
+    if (savedInterval) intervalEl.value = savedInterval;
+
+    el('#refreshBtn').addEventListener('click', loadAll);
+    qEl.addEventListener('input', filterRender);
+
+    // Proxy controls
+    el('#saveProxy').addEventListener('click', () => {
+      const v = el('#proxyInput').value.trim();
+      if (v){ PROXY_BASE = v.replace(/\/$/, ''); localStorage.setItem('rssProxy', PROXY_BASE); loadAll(); }
+    });
+    el('#clearProxy').addEventListener('click', () => {
+      PROXY_BASE = ''; localStorage.removeItem('rssProxy'); el('#proxyInput').value=''; loadAll();
+    });
+    const savedProxy = localStorage.getItem('rssProxy');
+    if (savedProxy) el('#proxyInput').value = savedProxy;
+
+    // Init filters from saved state
+    initFilters();
+
+    // Utilities
+    const sanitise = (str='') => str
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;');
+
+    const parseDate = (node) => {
+      if (!node) return null;
+      const txt = node.textContent?.trim();
+      if (!txt) return null;
+      const d = new Date(txt);
+      return isNaN(+d) ? null : d;
+    };
+
+    const pick = (xml, selectors) => {
+      for (const s of selectors){
+        const n = xml.querySelector(s);
+        if (n) return n;
+      }
+      return null;
+    };
+
+    const timeAgo = (d) => {
+      if (!d) return 'unknown';
+      const secs = Math.floor((Date.now() - d.getTime())/1000);
+      const map = [
+        [31536000,'yr'], [2592000,'mo'], [604800,'wk'], [86400,'d'], [3600,'h'], [60,'m']
+      ];
+      for (const [s, label] of map){
+        const v = Math.floor(secs/s);
+        if (v>=1) return `${v}${label} ago`;
+      }
+      return 'just now';
+    };
+
+    async function fetchRSS(url){
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 15000);
+      const target = PROXY_BASE ? `${PROXY_BASE}?url=${encodeURIComponent(url)}` : CORS_PROXY + encodeURIComponent(url);
+      const res = await fetch(target, { signal: controller.signal });
+      clearTimeout(t);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (PROXY_BASE){
+        // Expect raw XML directly from your proxy
+        return await res.text();
+      } else {
+        const data = await res.json();
+        return data.contents; // XML string
+      }
+    }
+
+    function parseItems(xmlString, sourceName){
+      const doc = new DOMParser().parseFromString(xmlString, 'text/xml');
+      const isAtom = !!doc.querySelector('feed > entry');
+      const items = [];
+      const list = isAtom ? [...doc.querySelectorAll('feed > entry')] : [...doc.querySelectorAll('rss > channel > item, rdf\:RDF > item, item')];
+      for (const it of list){
+        let titleNode = pick(it, ['title']);
+        let title = titleNode ? titleNode.textContent.trim() : '(no title)';
+
+        let link = '';
+        if (isAtom){
+          const linkEl = [...it.querySelectorAll('link')].find(a => !a.getAttribute('rel') || a.getAttribute('rel')==='alternate');
+          link = linkEl?.getAttribute('href') || '';
+        } else {
+          link = it.querySelector('link')?.textContent?.trim() || '';
+        }
+
+        let date = null;
+        if (isAtom) date = parseDate(pick(it,['updated','published']));
+        else date = parseDate(pick(it,['pubDate','dc\:date','date']));
+
+        // description/summary fallback
+        const descNode = pick(it, ['description','content\:encoded','summary']);
+        const desc = descNode ? descNode.textContent.replace(/<[^>]+>/g,'').trim() : '';
+
+        items.push({
+          title, link, date: date || new Date(0), source: sourceName, desc
+        });
+      }
+      return items;
+    }
+
+    function render(items){
+      const q = qEl.value.trim().toLowerCase();
+      const byCat = (items||[]).filter(i => catState[i.cat]);
+      const filtered = q ? byCat.filter(i => (i.title+" "+i.desc+" "+i.source).toLowerCase().includes(q)) : byCat;
+
+      countPill.textContent = `${filtered.length} item${filtered.length!==1?'s':''}`;
+      feedEl.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      filtered.forEach(i => {
+        const a = document.createElement('article');
+        a.innerHTML = `
+          <a class="title link" href="${sanitise(i.link)}" target="_blank" rel="noopener noreferrer">${sanitise(i.title)}</a>
+          <div class="meta"><span class="src">${sanitise(i.source)}</span> · <span class="ago" title="${i.date.toLocaleString()}">${timeAgo(i.date)}</span></div>
+          ${i.desc ? `<div class="desc">${sanitise(i.desc).slice(0,240)}${i.desc.length>240?'…':''}</div>`:''}
+          <div class="tags">${(i.tags||[]).map(t=>`<span class="tag">${sanitise(t)}</span>`).join('')}</div>
+        `;
+        frag.appendChild(a);
+      });
+      feedEl.appendChild(frag);
+    }
+
+    function filterRender(){
+      render(window.__ALL_ITEMS || []);
+    }
+
+    async function loadAll(){
+      setBusy(true, 'Fetching feeds…');
+      try{
+        const all = (await Promise.allSettled(
+          FEEDS.map(async f => {
+            const xml = await fetchRSS(f.url);
+            const items = parseItems(xml, f.name).map(x => ({...x, tags:f.tags||[], cat: f.cat }));
+            return items;
+          })
+        ))
+        .flatMap(r => r.status==='fulfilled' ? r.value : []);
+
+        // Deduplicate by link/title and sort by date desc
+        const uniq = [];
+        const seen = new Set();
+        for (const item of all){
+          const key = (item.link || item.title).toLowerCase();
+          if (!seen.has(key)) { seen.add(key); uniq.push(item); }
+        }
+        uniq.sort((a,b)=>b.date - a.date);
+        window.__ALL_ITEMS = uniq;
+        render(uniq);
+        lastUpdatedEl.textContent = 'Last updated — ' + new Date().toLocaleString();
+        setBusy(false,'Up to date');
+        netDot.className = 'dot ok';
+      }catch(e){
+        console.error(e);
+        setBusy(false,'Error fetching feeds');
+        netDot.className = 'dot err';
+      }
+    }
+
+    function setBusy(isBusy, msg){
+      feedEl.setAttribute('aria-busy', String(isBusy));
+      statusText.textContent = msg;
+    }
+
+    // Initial load and start auto‑refresh (apply saved interval if any)
+    loadAll();
+    const ms0 = +intervalEl.value;
+    if (ms0 > 0) timer = setInterval(loadAll, ms0);
+  </script>
+</body>
+</html>
