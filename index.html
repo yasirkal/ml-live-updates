@@ -3,40 +3,47 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>ML Research — Latest arXiv</title>
+<title>ML Research — arXiv (with diagnostics)</title>
 <style>
-  :root{--bg:#0b1020;--card:#121933;--muted:#9aa3c7;--text:#e6ebff;--accent:#6ea8fe}
-  *{box-sizing:border-box} html,body{height:100%}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0c1428 40%,#0b1020);color:var(--text)}
+  :root{--bg:#0b1020;--card:#121933;--muted:#9aa3c7;--text:#e6ebff;--accent:#6ea8fe;--ok:#69d18c;--warn:#ffcc66;--err:#ff7a7a}
+  *{box-sizing:border-box} html,body{height:100%} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial,sans-serif;background:linear-gradient(180deg,#0b1020,#0c1428 40%,#0b1020);color:var(--text)}
   header{position:sticky;top:0;z-index:5;background:rgba(11,16,32,.7);backdrop-filter:blur(10px);border-bottom:1px solid #1b2648}
-  .wrap{max-width:1000px;margin:0 auto;padding:16px}
-  h1{margin:.2rem 0 0;font-size:clamp(1.2rem,2.8vw,1.6rem);font-weight:700}
-  .sub{color:var(--muted);font-size:.95rem}
+  .wrap{max-width:980px;margin:0 auto;padding:16px}
+  h1{margin:.2rem 0 0;font-size:clamp(1.2rem,2.8vw,1.6rem);font-weight:700}.sub{color:var(--muted);font-size:.95rem}
   .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
   .controls > *{background:#121933;border:1px solid #1b2648;color:var(--text);padding:10px 12px;border-radius:12px}
   button{cursor:pointer;background:linear-gradient(180deg,#2b59ff,#365cff);border-color:#2b59ff}
   input[type="search"]{outline:none;min-width:220px}
   #feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:18px 0 70px}
   article{background:#121933;border:1px solid #1b2648;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
-  a{color:#cfe0ff;text-decoration:none}
-  .title{font-weight:650;line-height:1.25}
-  .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:.9rem}
-  .src{color:var(--accent);font-weight:600}
-  .desc{color:#c9d3ff;font-size:.95rem}
+  a{color:#cfe0ff;text-decoration:none}.title{font-weight:650;line-height:1.25}
+  .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:.9rem}.src{color:#6ea8fe;font-weight:600}.desc{color:#c9d3ff;font-size:.95rem}
+  .diag{margin-top:10px;background:#101733;border:1px solid #23355f;border-radius:12px;padding:12px}
+  .diag h3{margin:0 0 6px 0;font-size:1rem}
+  .row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-top:1px dashed #26345c}
+  .row:first-of-type{border-top:none}
+  .badge{padding:2px 8px;border-radius:999px;font-size:.8rem}
+  .ok{background:rgba(105,209,140,.15);color:#69d18c;border:1px solid rgba(105,209,140,.35)}
+  .warn{background:rgba(255,204,102,.15);color:#ffcc66;border:1px solid rgba(255,204,102,.35)}
+  .err{background:rgba(255,122,122,.15);color:#ff7a7a;border:1px solid rgba(255,122,122,.35)}
   footer{position:fixed;bottom:0;left:0;right:0;background:rgba(11,16,32,.8);backdrop-filter:blur(8px);border-top:1px solid #1b2648}
   .foot{display:flex;gap:10px;justify-content:space-between;align-items:center}
-  .pill{padding:6px 10px;border:1px solid #23355f;border-radius:999px;color:#9aa3c7}
 </style>
 </head>
 <body>
 <header>
   <div class="wrap">
     <h1>ML Research — Latest arXiv</h1>
-    <div class="sub">Reliable, minimal feed via your Cloudflare Worker proxy (arXiv cs.LG, cs.AI, cs.CL, stat.ML).</div>
+    <div class="sub">Uses your Cloudflare Worker proxy for reliable cross-origin fetching. Diagnostics below will show any errors.</div>
     <div class="controls">
       <button id="refreshBtn">⟳ Refresh</button>
       <input id="q" type="search" placeholder="Filter titles (e.g. diffusion, LLM, ViT)" />
-      <span class="pill" id="countPill">0 items</span>
+      <span id="countPill" class="badge warn">0 items</span>
+    </div>
+
+    <div id="diag" class="diag">
+      <h3>Diagnostics</h3>
+      <div id="diagRows"></div>
     </div>
   </div>
 </header>
@@ -53,10 +60,11 @@
 </footer>
 
 <script>
-  // ====== SET THIS TO YOUR WORKER URL (no trailing slash) ======
-  const PROXY_BASE = 'https://<your-worker-name>.<your-subdomain>.workers.dev';
-  // =============================================================
+  // ====== HARD-CODED PROXY (your Worker) — no trailing slash ======
+  const PROXY_BASE = 'https://rss-proxy.yasirkaleem.workers.dev';
+  // ================================================================
 
+  // Feeds (reliable, arXiv only)
   const FEEDS = [
     { name:'arXiv · cs.LG', url:'https://export.arxiv.org/rss/cs.LG' },
     { name:'arXiv · cs.AI', url:'https://export.arxiv.org/rss/cs.AI' },
@@ -66,19 +74,27 @@
 
   const el = s => document.querySelector(s);
   const feedEl = el('#feed'), qEl = el('#q'), statusEl = el('#status'),
-        countPill = el('#countPill'), lastUpdatedEl = el('#lastUpdated');
+        countPill = el('#countPill'), lastUpdatedEl = el('#lastUpdated'),
+        diagRows = el('#diagRows');
 
-  function esc(s=''){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
-  function timeAgo(d){
-    const secs = Math.floor((Date.now()-d.getTime())/1000);
-    const map = [[31536000,'yr'],[2592000,'mo'],[604800,'wk'],[86400,'d'],[3600,'h'],[60,'m']];
-    for (const [s,l] of map){ const v=Math.floor(secs/s); if (v>=1) return `${v}${l} ago`; }
-    return 'just now';
+  function row(name, badge, msg){
+    const d = document.createElement('div'); d.className = 'row';
+    d.innerHTML = `<div>${name}</div><div class="badge ${badge}">${msg}</div>`;
+    diagRows.appendChild(d);
   }
 
-  async function fetchRSS(url){
-    const r = await fetch(`${PROXY_BASE}/?url=${encodeURIComponent(url)}`, { cache: 'no-store' });
-    if (!r.ok) throw new Error('Proxy HTTP '+r.status+' for '+url);
+  function esc(s=''){ return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+  function timeAgo(d){ const s=Math.floor((Date.now()-d.getTime())/1000); const m=[[31536000,'yr'],[2592000,'mo'],[604800,'wk'],[86400,'d'],[3600,'h'],[60,'m']]; for (const [x,l] of m){const v=Math.floor(s/x); if(v>=1) return v+l+' ago';} return 'just now'; }
+
+  async function fetchViaProxy(url){
+    const r = await fetch(`${PROXY_BASE}/?url=${encodeURIComponent(url)}`, { cache:'no-store' });
+    if (!r.ok) throw new Error(`proxy HTTP ${r.status}`);
+    return await r.text();
+  }
+  async function fetchViaJina(url){ // fallback only for debugging
+    const u = 'https://r.jina.ai/http://' + url.replace(/^https?:\/\//i,'');
+    const r = await fetch(u, { cache:'no-store' });
+    if (!r.ok) throw new Error(`jina HTTP ${r.status}`);
     return await r.text();
   }
 
@@ -100,9 +116,8 @@
       const dateTxt = (isAtom ? (n.querySelector('updated, published')?.textContent)
                               : (n.querySelector('pubDate, dc\\:date, date')?.textContent)) || '';
       const d = dateTxt ? new Date(dateTxt) : new Date(0);
-      const desc = (n.querySelector('description, summary, content\\:encoded')?.textContent || '')
-        .replace(/<[^>]+>/g,'').trim();
-      out.push({ title, link, date: isNaN(+d) ? new Date(0) : d, source: sourceName, desc });
+      const desc = (n.querySelector('description, summary, content\\:encoded')?.textContent || '').replace(/<[^>]+>/g,'').trim();
+      out.push({ title, link, date: isNaN(+d)?new Date(0):d, source: sourceName, desc });
     }
     return out;
   }
@@ -128,17 +143,28 @@
   async function loadAll(){
     statusEl.textContent = 'Fetching…';
     feedEl.setAttribute('aria-busy','true');
+    diagRows.innerHTML = '';
     try{
-      const all = (await Promise.allSettled(
-        FEEDS.map(async f => {
+      const settled = await Promise.allSettled(FEEDS.map(async f => {
+        try{
+          const xml = await fetchViaProxy(f.url);
+          row(f.name, 'ok', 'proxy ok');
+          return parseItems(xml, f.name);
+        }catch(e1){
+          row(f.name, 'err', e1.message);
+          // Fallback try once (so you still get items while we debug)
           try{
-            const xml = await fetchRSS(f.url);
-            return parseItems(xml, f.name);
-          }catch(e){
-            console.warn('Failed:', f.name, e); return [];
+            const xml2 = await fetchViaJina(f.url);
+            row(f.name + ' (fallback)', 'warn', 'using r.jina.ai');
+            return parseItems(xml2, f.name);
+          }catch(e2){
+            row(f.name + ' (fallback)', 'err', e2.message);
+            return [];
           }
-        })
-      )).flatMap(r => r.status==='fulfilled' ? r.value : []);
+        }
+      }));
+
+      const all = settled.flatMap(r => r.status==='fulfilled' ? r.value : []);
       const seen = new Set(), uniq = [];
       for (const it of all){
         const key = (it.link || it.title).toLowerCase();
