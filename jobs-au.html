@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AU Tech Jobs — AI • Big Data • Security • Software • Cloud</title>
+<style>
+  :root{--bg:#0b1020;--card:#111a33;--muted:#9fb1c7;--text:#e7efff;--accent:#7cc4ff}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Inter,Roboto,Arial}
+  header{max-width:1100px;margin:24px auto 10px;padding:0 16px}
+  h1{margin:0 0 6px;font-size:26px}
+  .sub{color:var(--muted);font-size:14px}
+  .toolbar{max-width:1100px;margin:10px auto;padding:0 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  select,input,button{background:#0e1530;color:var(--text);border:1px solid #1e2a4d;border-radius:10px;padding:8px 12px}
+  button{cursor:pointer}
+  .tabs{max-width:1100px;margin:6px auto 0;padding:0 16px;display:flex;gap:8px;flex-wrap:wrap}
+  .tab{padding:8px 12px;border:1px solid #25376a;border-radius:999px;background:#0e1530;color:#cfe2ff;cursor:pointer}
+  .tab.active{background:#193063;color:#fff;border-color:#2d4d9b}
+  .grid{max-width:1100px;margin:14px auto 40px;padding:0 16px;display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  article{background:var(--card);border:1px solid #1b2753;border-radius:14px;padding:14px}
+  .title{font-weight:700;color:#eaf3ff;text-decoration:none}
+  .meta{margin-top:6px;color:var(--muted);font-size:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .desc{margin-top:8px;color:#cfe0f7;font-size:14px}
+  .foot{max-width:1100px;margin:0 auto 30px;padding:0 16px;color:var(--muted);font-size:12px}
+  .err{color:#ffb4b4}
+</style>
+</head>
+<body>
+<header>
+  <h1>AU Tech Jobs</h1>
+  <div class="sub">Live listings for Australia via your Cloudflare Worker (Adzuna API).</div>
+</header>
+
+<div class="toolbar">
+  <label>State/Location:
+    <select id="where">
+      <option value="Australia">All Australia</option>
+      <option>NSW</option><option>VIC</option><option>QLD</option>
+      <option>WA</option><option>SA</option><option>ACT</option>
+      <option>TAS</option><option>NT</option>
+    </select>
+  </label>
+  <label>Limit:
+    <select id="limit">
+      <option>20</option><option>40</option><option>60</option>
+    </select>
+  </label>
+  <input id="q" placeholder="Filter titles (e.g. Sydney, Python, SOC)"/>
+  <button id="refresh">Refresh</button>
+  <span id="status" class="sub"></span>
+</div>
+
+<div class="tabs" id="tabs"></div>
+<main class="grid" id="grid" aria-live="polite"></main>
+<div class="foot">
+  <div id="error" class="err"></div>
+  <div id="updated" class="sub"></div>
+</div>
+
+<script>
+const WORKER = "https://rss-proxy.yasirkaleem.workers.dev"; // your Worker base
+const CATS = [
+  {key:"ai",       label:"AI / ML"},
+  {key:"bigdata",  label:"Big Data"},
+  {key:"security", label:"Cybersecurity"},
+  {key:"software", label:"Software Eng"},
+  {key:"cloud",    label:"Cloud / DevOps"}
+];
+
+const tabs = document.getElementById('tabs');
+const grid = document.getElementById('grid');
+const statusEl = document.getElementById('status');
+const errEl = document.getElementById('error');
+const updatedEl = document.getElementById('updated');
+const whereSel = document.getElementById('where');
+const limitSel = document.getElementById('limit');
+const qEl = document.getElementById('q');
+
+let ACTIVE = CATS[0].key;
+let MASTER = [];
+
+function makeTabs(){
+  tabs.innerHTML = '';
+  for (const c of CATS){
+    const b = document.createElement('button');
+    b.className = 'tab' + (c.key===ACTIVE?' active':'');
+    b.textContent = c.label;
+    b.onclick = () => { ACTIVE = c.key; [...tabs.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); load(); };
+    tabs.appendChild(b);
+  }
+}
+
+function esc(s=''){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function timeAgo(d){
+  const t = (Date.now()-d.getTime())/1000;
+  return t<60?`${t|0}s ago`: t<3600?`${(t/60)|0}m ago`: t<86400?`${(t/3600)|0}h ago` : d.toLocaleDateString();
+}
+
+async function fetchJobs(cat){
+  const where = whereSel.value || 'Australia';
+  const limit = limitSel.value || '20';
+  const url = `${WORKER}/jobs?cat=${encodeURIComponent(cat)}&where=${encodeURIComponent(where)}&limit=${encodeURIComponent(limit)}`;
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return (await r.json()).items || [];
+}
+
+function render(list){
+  const term = qEl.value.trim().toLowerCase();
+  const shown = term ? list.filter(i => (i.title+' '+i.company+' '+i.location).toLowerCase().includes(term)) : list;
+
+  grid.innerHTML = '';
+  for (const j of shown){
+    const el = document.createElement('article');
+    const salary = (j.salary_min||j.salary_max) ? ` • $${(j.salary_min||j.salary_max).toLocaleString()}+` : '';
+    el.innerHTML = `
+      <a class="title" href="${esc(j.url)}" target="_blank" rel="noopener noreferrer">${esc(j.title)}</a>
+      <div class="meta">${esc(j.company||'')}${j.company&&j.location?' • ':''}${esc(j.location||'')}${salary} • ${j.created?timeAgo(new Date(j.created)):''}</div>
+      <div class="desc">${esc((j.desc||'').replace(/\s+/g,' ').slice(0,220))}${(j.desc||'').length>220?'…':''}</div>`;
+    grid.appendChild(el);
+  }
+  statusEl.textContent = `Showing ${shown.length} job(s) — ${whereSel.value}`;
+  updatedEl.textContent = 'Last updated — ' + new Date().toLocaleString();
+}
+
+async function load(){
+  errEl.textContent = ''; statusEl.textContent = 'Loading…'; grid.innerHTML = '';
+  try {
+    const items = await fetchJobs(ACTIVE);
+    MASTER = items.sort((a,b)=> new Date(b.created) - new Date(a.created));
+    render(MASTER);
+  } catch (e) {
+    errEl.textContent = 'Error: ' + e.message + (e.message.includes('Missing ADZUNA') ? ' — add your Adzuna keys in the Worker settings.' : '');
+  } finally { /* no-op */ }
+}
+
+document.getElementById('refresh').onclick = load;
+qEl.oninput = ()=>render(MASTER);
+makeTabs(); load();
+</script>
+</body>
+</html>
