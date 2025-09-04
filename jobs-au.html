@@ -1,110 +1,131 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>AU Tech Jobs — Live Feed</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;margin:0;background:#0b1220;color:#e9eef7}
-    header{padding:24px 16px;text-align:center;border-bottom:1px solid #1b2435}
-    header h1{margin:0;font-size:22px}
-    .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
-    select,input,button{background:#0f172a;border:1px solid #23304a;color:#e9eef7;border-radius:10px;padding:10px}
-    .wrap{max-width:1100px;margin:0 auto;padding:16px}
-    .grid{display:grid;grid-template-columns:repeat(1,minmax(0,1fr));gap:14px}
-    @media(min-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
-    @media(min-width:1040px){.grid{grid-template-columns:repeat(3,1fr)}}
-    .card{background:#0f172a;border:1px solid #23304a;border-radius:16px;padding:14px}
-    .title{font-weight:600;font-size:16px;margin:0 0 6px}
-    .meta{font-size:12px;opacity:.85;margin-bottom:10px}
-    .badge{display:inline-block;background:#16233b;border:1px solid #274062;color:#b8d3ff;font-size:11px;padding:4px 8px;border-radius:999px;margin-right:6px}
-    .footer{padding:16px;text-align:center;opacity:.7}
-    a{color:#9cc4ff;text-decoration:none}
-    a:hover{text-decoration:underline}
-    .empty{opacity:.7;text-align:center;padding:28px}
-    .spinner{width:28px;height:28px;border:3px solid #2a3a56;border-top-color:#9cc4ff;border-radius:50%;animation:spin 1s linear infinite;margin:20px auto}
-    @keyframes spin{to{transform:rotate(360deg)}}
-  </style>
+<meta charset="utf-8" />
+<title>AU Tech Jobs — Diagnostics Build</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{margin:0;background:#0b1220;color:#e9eef7;font:16px/1.5 system-ui,Segoe UI,Inter,Roboto,Arial}
+  header{padding:18px 16px;border-bottom:1px solid #1b2435}
+  h1{margin:0 0 6px;font-size:20px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  select,input,button{background:#0f172a;border:1px solid #23304a;color:#e9eef7;border-radius:10px;padding:8px 10px}
+  .wrap{max-width:1100px;margin:0 auto;padding:16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:12px}
+  .card{background:#0f172a;border:1px solid #23304a;border-radius:12px;padding:12px}
+  .title{font-weight:700;margin:0 0 6px}
+  .meta{font-size:12px;opacity:.85}
+  a{color:#9cc4ff;text-decoration:none}
+  a:hover{text-decoration:underline}
+  .diag{background:#101a30;border:1px solid #274062;border-radius:12px;padding:12px;margin-top:12px;font-size:13px;white-space:pre-wrap}
+  .ok{color:#9af0b5} .warn{color:#ffd27a} .err{color:#ff9b9b}
+  .spinner{width:26px;height:26px;border:3px solid #2a3a56;border-top-color:#9cc4ff;border-radius:50%;animation:spin 1s linear infinite;display:inline-block;margin-right:8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
-  <header>
-    <h1>Australia • AI / Big Data / Cybersecurity / Software / Cloud</h1>
-    <div class="controls">
-      <select id="preset">
-        <option value="">All tech roles (default)</option>
-        <option value="AI,Machine Learning,Deep Learning,GenAI,ML">AI & ML</option>
-        <option value="Big Data,Data Engineer,Data Scientist">Big Data</option>
-        <option value="Cybersecurity,Security Engineer,SOC,AppSec,Infosec">Cybersecurity</option>
-        <option value="Software Engineer,Backend,Frontend,Full Stack">Software Engineering</option>
-        <option value="Cloud,AWS,GCP,Azure,DevOps,SRE,Kubernetes">Cloud & Platform</option>
-      </select>
-      <input id="search" placeholder="Optional extra keywords (comma separated)" />
-      <button id="go">Refresh</button>
-    </div>
-  </header>
-
-  <div class="wrap">
-    <div id="status" class="empty">Loading jobs…</div>
-    <div id="grid" class="grid" style="display:none;"></div>
+<header class="wrap">
+  <h1>Australia • AI / Big Data / Security / Software / Cloud — Jobs</h1>
+  <div class="controls">
+    <select id="preset">
+      <option value="">All tech roles (default)</option>
+      <option value="AI,Machine Learning,Deep Learning,GenAI,ML">AI & ML</option>
+      <option value="Big Data,Data Engineer,Data Scientist">Big Data</option>
+      <option value="Cybersecurity,Security Engineer,SOC,AppSec,Infosec">Cybersecurity</option>
+      <option value="Software Engineer,Backend,Frontend,Full Stack">Software Engineering</option>
+      <option value="Cloud,AWS,GCP,Azure,DevOps,SRE,Kubernetes">Cloud & Platform</option>
+    </select>
+    <input id="search" placeholder="Optional extra keywords (comma separated)" />
+    <button id="go">Refresh</button>
   </div>
+</header>
 
-  <div class="footer">Powered by official job-board APIs + Careerjet</div>
+<div class="wrap">
+  <div id="status" class="diag"><span class="spinner"></span>Ready. Click Refresh to fetch.</div>
+  <div id="diag" class="diag"></div>
+  <div id="grid" class="grid"></div>
+</div>
 
 <script>
-const WORKER_BASE = "https://rss-proxy.yasirkaleem.workers.dev"; // ← your Worker origin
-const PROVIDERS = "careerjet,lever,greenhouse,ashby"; // add ",recruitee" later if you populate it
+// ====== SET THIS EXACTLY ======
+const WORKER_BASE = "https://rss-proxy.yasirkaleem.workers.dev"; // no trailing slash
+const PROVIDERS   = "careerjet,lever,greenhouse,ashby";           // customize anytime
+// ==============================
 
 const $preset = document.getElementById("preset");
 const $search = document.getElementById("search");
 const $go = document.getElementById("go");
-const $grid = document.getElementById("grid");
 const $status = document.getElementById("status");
-
-async function load() {
-  $grid.style.display = "none";
-  $grid.innerHTML = "";
-  $status.innerHTML = `<div class="spinner"></div> Fetching fresh roles…`;
-
-  // Build q= keywords (preset + custom)
-  const parts = [];
-  if ($preset.value) parts.push($preset.value);
-  if ($search.value.trim()) parts.push($search.value.trim());
-  const q = encodeURIComponent(parts.join(","));
-
-  const url = `${WORKER_BASE}/jobs-au?providers=${encodeURIComponent(PROVIDERS)}${q ? `&q=${q}` : ""}`;
-  try {
-    const r = await fetch(url, { cache: "no-store" });
-    const jobs = await r.json();
-
-    if (!Array.isArray(jobs) || jobs.length === 0) {
-      $status.textContent = "No roles found for Australia with the current filters. Try another preset or clear custom keywords.";
-      return;
-    }
-
-    $status.textContent = "";
-    $grid.style.display = "grid";
-
-    for (const j of jobs) {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <div class="badge">${(j.provider||"").toUpperCase()}</div>
-        <h3 class="title"><a href="${j.url}" target="_blank" rel="noopener">${escapeHTML(j.title||"")}</a></h3>
-        <div class="meta">${escapeHTML(j.company||"")} • ${escapeHTML(j.location||"Australia")}</div>
-        <div class="meta">${j.date ? new Date(j.date).toLocaleDateString() : ""}</div>
-      `;
-      $grid.appendChild(card);
-    }
-  } catch (e) {
-    console.error(e);
-    $status.textContent = "Couldn’t load jobs (network or API error).";
-  }
-}
-
-function escapeHTML(s){return (s||"").replace(/[&<>"']/g,m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]))}
+const $diag = document.getElementById("diag");
+const $grid = document.getElementById("grid");
 
 $go.addEventListener("click", load);
 window.addEventListener("load", load);
+
+function buildUrl(){
+  const parts = [];
+  if ($preset.value) parts.push($preset.value);
+  if ($search.value.trim()) parts.push($search.value.trim());
+  const q = parts.join(",");
+  const cb = Date.now(); // cache-buster
+  return `${WORKER_BASE}/jobs-au?providers=${encodeURIComponent(PROVIDERS)}${q?`&q=${encodeURIComponent(q)}`:""}&cb=${cb}`;
+}
+
+async function load(){
+  $status.innerHTML = `<span class="spinner"></span>Fetching…`;
+  $diag.textContent = '';
+  $grid.innerHTML = '';
+
+  const url = buildUrl();
+  try{
+    const r = await fetch(url, { cache:"no-store" });
+    const text = await r.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e){ data = null; }
+
+    // ---- Diagnostics panel ----
+    const lines = [];
+    lines.push(`Request: ${url}`);
+    lines.push(`HTTP: ${r.status}`);
+    lines.push(`Content-Type: ${r.headers.get('content-type') || '(none)'}`);
+    if (data) {
+      const shape = Array.isArray(data) ? 'Array' : (data && typeof data === 'object' ? 'Object' : typeof data);
+      lines.push(`JSON shape: ${shape} ${Array.isArray(data) ? `(length=${data.length})` : (data.items ? `(items.length=${(data.items||[]).length})` : '')}`);
+    } else {
+      lines.push('JSON parse: FAILED — showing raw body below');
+      lines.push(text.slice(0, 800));
+    }
+    $diag.textContent = lines.join('\n');
+
+    if (!data) {
+      $status.innerHTML = `<span class="err">Couldn’t parse JSON from Worker.</span>`;
+      return;
+    }
+
+    // ---- Accept BOTH shapes: [ ... ] OR { items:[ ... ] }
+    const items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
+    if (!items.length) {
+      $status.innerHTML = `<span class="warn">No jobs returned. If HTTP is 200, try changing preset/keywords.</span>`;
+      return;
+    }
+
+    $status.innerHTML = `<span class="ok">Loaded ${items.length} job(s).</span>`;
+    for (const j of items){
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="meta">${(j.provider||'').toUpperCase()}</div>
+        <h3 class="title"><a href="${escapeHTML(j.url||'')}" target="_blank" rel="noopener">${escapeHTML(j.title||'')}</a></h3>
+        <div class="meta">${escapeHTML(j.company||'')} • ${escapeHTML(j.location||'Australia')} • ${j.date ? new Date(j.date).toLocaleDateString() : ''}</div>
+      `;
+      $grid.appendChild(card);
+    }
+  }catch(e){
+    $status.innerHTML = `<span class="err">Fetch failed: ${e.message}</span>`;
+  }
+}
+
+function escapeHTML(s){return (s||"").replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]))}
 </script>
 </body>
 </html>
