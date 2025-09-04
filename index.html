@@ -15,6 +15,7 @@
   .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
   .controls > *{background:#121933;border:1px solid #1b2648;color:var(--text);padding:10px 12px;border-radius:12px}
   button{cursor:pointer;background:linear-gradient(180deg,#2b59ff,#365cff);border-color:#2b59ff}
+  input[type="search"]{outline:none;min-width:220px}
   #feed{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin:18px 0 70px}
   article{background:#121933;border:1px solid #1b2648;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
   a{color:#cfe0ff;text-decoration:none}
@@ -31,7 +32,7 @@
 <header>
   <div class="wrap">
     <h1>ML Research — Latest arXiv</h1>
-    <div class="sub">Reliable, minimal feed: arXiv cs.LG, cs.AI, cs.CL, stat.ML (via a CORS-friendly mirror).</div>
+    <div class="sub">Reliable, minimal feed via your Cloudflare Worker proxy (arXiv cs.LG, cs.AI, cs.CL, stat.ML).</div>
     <div class="controls">
       <button id="refreshBtn">⟳ Refresh</button>
       <input id="q" type="search" placeholder="Filter titles (e.g. diffusion, LLM, ViT)" />
@@ -52,6 +53,6 @@
 </footer>
 
 <script>
-  // -------- Ultra-reliable minimal sources (arXiv only) --------
-  const FEEDS = [
-    { name:'
+  // ====== SET THIS TO YOUR WORKER URL (no trailing slash) ======
+  const PROXY_BASE = 'https://<your-worker-name>.<your-subdomain>.workers.dev';
+  // ================================================
