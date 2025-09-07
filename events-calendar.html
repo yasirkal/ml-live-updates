@@ -2,163 +2,118 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Events Calendar</title>
+<title>Sydney Tech Events — Filterable Calendar</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/index.global.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.11/index.global.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/@fullcalendar/list@6.1.11/index.global.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.min.css" rel="stylesheet">
 <style>
   body{margin:0;background:#0b1220;color:#e9eef7;font:16px/1.5 system-ui,Segoe UI,Inter,Roboto,Arial}
   header{padding:16px;border-bottom:1px solid #1b2435}
-  h1{margin:0 0 6px;font-size:20px}
-  .controls{display:flex;gap:8px;flex-wrap:wrap}
-  select,input,button,label{background:#0f172a;border:1px solid #23304a;color:#e9eef7;border-radius:10px;padding:8px 10px}
-  label{display:flex;align-items:center;gap:6px;border:none;padding:0}
+  h1{margin:0 0 8px;font-size:20px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .pill{background:#0f172a;border:1px solid #23304a;color:#b8d3ff;border-radius:999px;padding:6px 10px}
+  button,select,input,label{background:#0f172a;border:1px solid #23304a;color:#e9eef7;border-radius:10px;padding:8px 10px}
+  label{display:flex;align-items:center;gap:6px}
   #calendar{max-width:1100px;margin:12px auto;padding:0 12px}
-  .pill{border:1px solid #274062;border-radius:999px;padding:4px 10px;font-size:12px;margin-left:8px;color:#b8d3ff}
+  .badge{display:inline-block;border:1px solid #2a3f6b;border-radius:999px;padding:2px 8px;font-size:11px;margin-left:8px;color:#cfe0ff}
 </style>
 </head>
 <body>
 <header>
-  <h1>Events</h1>
+  <h1>Sydney Tech Events <span id="count" class="badge">–</span></h1>
   <div class="controls">
-    <button id="prevBtn">◀ Prev</button>
-    <button id="todayBtn">Today</button>
-    <button id="nextBtn">Next ▶</button>
+    <button id="prev">◀ Prev</button>
+    <button id="today">Today</button>
+    <button id="next">Next ▶</button>
 
-    <select id="viewSel" title="View">
+    <select id="view">
       <option value="dayGridMonth">Month</option>
       <option value="timeGridWeek">Week</option>
       <option value="timeGridDay">Day</option>
-      <option value="listWeek">Agenda (week)</option>
+      <option value="listWeek">Agenda</option>
     </select>
 
-    <button id="thisWeekBtn">This week</button>
-    <button id="next30Btn">Next 30 days</button>
+    <label class="pill"><input type="checkbox" class="d" value="ai" checked> AI</label>
+    <label class="pill"><input type="checkbox" class="d" value="cyber" checked> Cyber</label>
+    <label class="pill"><input type="checkbox" class="d" value="data" checked> Data</label>
+    <label class="pill"><input type="checkbox" class="d" value="cloud" checked> Cloud</label>
+    <label class="pill"><input type="checkbox" class="d" value="soft" checked> Software</label>
 
     <input id="q" placeholder="Search title/description…" />
-    <input id="loc" placeholder="Location contains…" style="min-width:180px" />
-
-    <label><input type="checkbox" id="futureOnly" checked> Hide past</label>
-    <label><input type="checkbox" id="weekends"> Show weekends</label>
-
-    <span id="count" class="pill">–</span>
+    <select id="days">
+      <option value="30">Next 30 days</option>
+      <option value="60" selected>Next 60 days</option>
+      <option value="90">Next 90 days</option>
+    </select>
+    <button id="refresh">Refresh</button>
   </div>
 </header>
 
 <div id="calendar"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/list@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/icalendar@6.1.11/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script>
-  // ====== CONFIG ======
-  const PROXY_BASE = "https://rss-proxy.yasirkaleem.workers.dev"; // your Cloudflare Worker (already set up)
-  // Replace this with your Google Calendar *public* ICS URL:
-  const ICS_URL = "https://calendar.google.com/calendar/ical/6b32fb546cd3f09e9fea608edf29f71eb64ef7653838b5cd6b16935956615883%40group.calendar.google.com/public/basic.ics";
-  // ====================
+const WORKER_BASE = "https://rss-proxy.yasirkaleem.workers.dev"; // ← your Worker base URL
+const calEl = document.getElementById('calendar');
+const countEl = document.getElementById('count');
 
-  // Use the proxy to avoid CORS issues when fetching ICS
-  function proxied(url){ return `${PROXY_BASE}/?url=${encodeURIComponent(url)}`; }
-
-  const countPill = document.getElementById('count');
-  let filters = { q:'', loc:'', futureOnly:true };
-
-  const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-    plugins: [ FullCalendarDayGrid, FullCalendarTimeGrid, FullCalendarList, FullCalendarICalendar ],
-    initialView: 'dayGridMonth',
-    timeZone: 'Australia/Sydney',
-    height: 'auto',
-    headerToolbar: false, // we use custom controls
-    navLinks: true,
-    nowIndicator: true,
-    weekends: false, // default off (can be toggled)
-    eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
-    // Load ICS via proxy
-    eventSources: [
-      {
-        url: proxied(ICS_URL),
-        format: 'ics'
-      }
-    ],
-    // Filter: hide events that don't match (rerenderEvents will re-run this)
-    eventDidMount: (info) => {
-      const ev = info.event;
-      const text = [ev.title || '', ev.extendedProps.description || ''].join(' ').toLowerCase();
-      const loc  = (ev.extendedProps.location || '').toLowerCase();
-
-      let show = true;
-      if (filters.q)   show = show && text.includes(filters.q);
-      if (filters.loc) show = show && loc.includes(filters.loc);
-      if (filters.futureOnly) show = show && (ev.end ? ev.end >= new Date() : ev.start >= new Date());
-
-      info.el.style.display = show ? '' : 'none';
-    },
-    datesSet: updateCount,
-    eventsSet: updateCount
-  });
-
-  calendar.render();
-
-  // --- UI wiring ---
-  document.getElementById('prevBtn').onclick = () => { calendar.prev(); };
-  document.getElementById('todayBtn').onclick = () => { calendar.today(); };
-  document.getElementById('nextBtn').onclick = () => { calendar.next(); };
-
-  document.getElementById('viewSel').onchange = (e) => {
-    calendar.changeView(e.target.value);
-  };
-
-  document.getElementById('thisWeekBtn').onclick = () => {
-    const today = new Date();
-    const monday = new Date(today); monday.setDate(today.getDate() - ((today.getDay()+6)%7));
-    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
-    calendar.changeView('timeGridWeek', monday);
-    calendar.setOption('validRange', { start: fmtDate(monday), end: addDays(sunday,1) });
-  };
-
-  document.getElementById('next30Btn').onclick = () => {
-    const start = new Date(); start.setHours(0,0,0,0);
-    const end = addDays(start, 30);
-    calendar.changeView('listWeek', start);
-    calendar.setOption('validRange', { start: fmtDate(start), end: fmtDate(end) });
-  };
-
-  document.getElementById('q').oninput = (e) => {
-    filters.q = (e.target.value || '').trim().toLowerCase();
-    calendar.rerenderEvents();
-    updateCount();
-  };
-
-  document.getElementById('loc').oninput = (e) => {
-    filters.loc = (e.target.value || '').trim().toLowerCase();
-    calendar.rerenderEvents();
-    updateCount();
-  };
-
-  document.getElementById('futureOnly').onchange = (e) => {
-    filters.futureOnly = e.target.checked;
-    calendar.rerenderEvents();
-    updateCount();
-  };
-
-  document.getElementById('weekends').onchange = (e) => {
-    calendar.setOption('weekends', e.target.checked);
-  };
-
-  // Helpers
-  function updateCount() {
-    // Count visible event elements currently in the DOM
-    const els = document.querySelectorAll('.fc-event, .fc-list-event');
-    let visible = 0;
-    els.forEach(el => { if (el.style.display !== 'none') visible++; });
-    countPill.textContent = `${visible} shown`;
+let rawItems = [];
+const calendar = new FullCalendar.Calendar(calEl, {
+  initialView: 'dayGridMonth',
+  timeZone: 'Australia/Sydney',
+  headerToolbar: false,
+  height: 'auto',
+  eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
+  events: (info, success, failure) => {
+    fetchEvents().then(success).catch(failure);
   }
-  function addDays(d, n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
-  function fmtDate(d){ return d.toISOString().slice(0,10); } // YYYY-MM-DD
+});
+calendar.render();
+
+function selectedDisciplines(){
+  return [...document.querySelectorAll('.d:checked')].map(el=>el.value).join(',');
+}
+function fetchEvents(){
+  const days = document.getElementById('days').value;
+  const url = `${WORKER_BASE}/events-syd?days=${encodeURIComponent(days)}&disciplines=${encodeURIComponent(selectedDisciplines())}&cb=${Date.now()}`;
+  return fetch(url, { cache:'no-store' })
+    .then(r => r.json())
+    .then(data => {
+      rawItems = (data.items||[]);
+      return mapAndFilter(rawItems);
+    });
+}
+function mapAndFilter(items){
+  const q = (document.getElementById('q').value || '').trim().toLowerCase();
+  const allowed = new Set(selectedDisciplines().split(',').filter(Boolean));
+  const filtered = items.filter(e => {
+    if (allowed.size && e.discipline && !allowed.has(e.discipline)) return false;
+    if (q) {
+      const blob = `${e.title||''} ${e.location||''}`.toLowerCase();
+      if (!blob.includes(q)) return false;
+    }
+    return true;
+  });
+  countEl.textContent = `${filtered.length} shown`;
+  return filtered.map(e => ({
+    title: e.title, start: e.start, end: e.end, url: e.url || null,
+    extendedProps: { source: e.source || '', location: e.location || '', discipline: e.discipline || '' }
+  }));
+}
+
+// UI
+document.getElementById('refresh').onclick = async () => {
+  const evts = await fetchEvents();
+  calendar.removeAllEvents(); calendar.addEventSource(evts);
+};
+document.getElementById('q').oninput = async () => {
+  calendar.removeAllEvents(); calendar.addEventSource(mapAndFilter(rawItems));
+};
+document.getElementById('view').onchange = (e) => calendar.changeView(e.target.value);
+document.getElementById('today').onclick = () => calendar.today();
+document.getElementById('prev').onclick = () => calendar.prev();
+document.getElementById('next').onclick = () => calendar.next();
+document.querySelectorAll('.d').forEach(cb => cb.onchange = () => document.getElementById('refresh').click());
 </script>
 </body>
 </html>
+
