@@ -2,118 +2,141 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Sydney Tech Events — Calendar</title>
+<title>Sydney Tech Events</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  body{margin:0;background:#0b1220;color:#e9eef7;font:16px/1.5 system-ui,Segoe UI,Inter,Roboto,Arial}
-  header{padding:16px;border-bottom:1px solid #1b2435}
+  :root{
+    --bg:#ffffff; --text:#111827; --sub:#475569; --line:#e5e7eb;
+    --chip:#f3f4f6; --chip-text:#111827;
+    --ai:#2563eb; --cyber:#10b981; --data:#f59e0b; --cloud:#8b5cf6; --soft:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 "Inter",system-ui,Segoe UI,Roboto,Arial}
+  header{position:sticky;top:0;background:linear-gradient(180deg,#fafafa,rgba(250,250,250,0.85));backdrop-filter:saturate(180%) blur(8px);
+    border-bottom:1px solid var(--line);z-index:10}
+  .wrap{max-width:1100px;margin:0 auto;padding:14px 16px}
   h1{margin:0 0 8px;font-size:20px}
   .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .pill{background:#0f172a;border:1px solid #23304a;color:#b8d3ff;border-radius:999px;padding:6px 10px}
-  button,select,input,label{background:#0f172a;border:1px solid #23304a;color:#e9eef7;border-radius:10px;padding:8px 10px}
+  .chip,button,select,input,label{background:var(--chip);color:var(--chip-text);border:1px solid var(--line);border-radius:999px;padding:7px 12px}
+  button,select,input{border-radius:10px}
   label{display:flex;align-items:center;gap:6px}
+  .legend{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
   #calendar{max-width:1100px;margin:12px auto;padding:0 12px}
-  .badge{display:inline-block;border:1px solid #2a3f6b;border-radius:999px;padding:2px 8px;font-size:11px;margin-left:8px;color:#cfe0ff}
+  /* FullCalendar polish */
+  .fc .fc-toolbar-title{font-size:1.15rem}
+  .fc .fc-button{background:#f3f4f6;border:1px solid var(--line);color:#111827;border-radius:10px}
+  .fc .fc-button-primary:disabled{opacity:.6}
+  .fc .fc-daygrid-day, .fc .fc-scrollgrid{border-color:var(--line)}
+  .fc .fc-col-header-cell{background:#fafafa}
+  .fc .fc-day-today{background:#fff7ed}
+  /* Event pill look */
+  .fc-event{border:0;border-radius:10px;padding:2px 6px}
+  .fc-event .t{font-weight:600}
+  .fc-event .s{opacity:.9;font-size:12px}
+  /* discipline colors */
+  .d-ai   {background:rgba(37,99,235,.12); border:1px solid rgba(37,99,235,.35); color:#0b3aa8}
+  .d-cyber{background:rgba(16,185,129,.14); border:1px solid rgba(16,185,129,.35); color:#065f46}
+  .d-data {background:rgba(245,158,11,.16); border:1px solid rgba(245,158,11,.38); color:#92400e}
+  .d-cloud{background:rgba(139,92,246,.14); border:1px solid rgba(139,92,246,.35); color:#5b21b6}
+  .d-soft {background:rgba(239,68,68,.14);  border:1px solid rgba(239,68,68,.35);  color:#991b1b}
+  /* list (agenda) view */
+  .fc .fc-list-day-cushion{background:#fafafa}
 </style>
 </head>
 <body>
-<header>
-  <h1>Sydney Tech Events <span id="count" class="badge">–</span></h1>
-  <div class="controls">
-    <button id="prev">◀ Prev</button>
-    <button id="today">Today</button>
-    <button id="next">Next ▶</button>
+  <header>
+    <div class="wrap">
+      <h1>Sydney Tech Events</h1>
+      <div class="controls">
+        <button id="prev">◀ Prev</button>
+        <button id="today">Today</button>
+        <button id="next">Next ▶</button>
+        <select id="view">
+          <option value="dayGridMonth">Month</option>
+          <option value="timeGridWeek">Week</option>
+          <option value="timeGridDay">Day</option>
+          <option value="listWeek">Agenda</option>
+        </select>
 
-    <select id="view">
-      <option value="dayGridMonth">Month</option>
-      <option value="timeGridWeek">Week</option>
-      <option value="timeGridDay">Day</option>
-      <option value="listWeek">Agenda</option>
-    </select>
+        <label class="chip"><input type="checkbox" class="d" value="ai" checked> AI</label>
+        <label class="chip"><input type="checkbox" class="d" value="cyber" checked> Cyber</label>
+        <label class="chip"><input type="checkbox" class="d" value="data" checked> Data</label>
+        <label class="chip"><input type="checkbox" class="d" value="cloud" checked> Cloud</label>
+        <label class="chip"><input type="checkbox" class="d" value="soft" checked> Software</label>
 
-    <label class="pill"><input type="checkbox" class="d" value="ai" checked> AI</label>
-    <label class="pill"><input type="checkbox" class="d" value="cyber" checked> Cyber</label>
-    <label class="pill"><input type="checkbox" class="d" value="data" checked> Data</label>
-    <label class="pill"><input type="checkbox" class="d" value="cloud" checked> Cloud</label>
-    <label class="pill"><input type="checkbox" class="d" value="soft" checked> Software</label>
+        <input id="q" placeholder="Search title or location…" />
 
-    <input id="q" placeholder="Search title/description…" />
-    <select id="days">
-      <option value="30">Next 30 days</option>
-      <option value="60" selected>Next 60 days</option>
-      <option value="90">Next 90 days</option>
-    </select>
-    <button id="refresh">Refresh</button>
-  </div>
-</header>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--ai)"></span> AI</span>
+          <span><span class="dot" style="background:var(--cyber)"></span> Cyber</span>
+          <span><span class="dot" style="background:var(--data)"></span> Data</span>
+          <span><span class="dot" style="background:var(--cloud)"></span> Cloud</span>
+          <span><span class="dot" style="background:var(--soft)"></span> Software</span>
+        </div>
+      </div>
+    </div>
+  </header>
 
-<div id="calendar"></div>
+  <div id="calendar"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-<script>
-const WORKER_BASE = "https://rss-proxy.yasirkaleem.workers.dev"; // ← your Worker base URL
-const calEl = document.getElementById('calendar');
-const countEl = document.getElementById('count');
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script>
+    const WORKER_BASE = "https://rss-proxy.yasirkaleem.workers.dev";
 
-let rawItems = [];
-const calendar = new FullCalendar.Calendar(calEl, {
-  initialView: 'dayGridMonth',
-  timeZone: 'Australia/Sydney',
-  headerToolbar: false,
-  height: 'auto',
-  eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
-  events: (info, success, failure) => {
-    fetchEvents().then(success).catch(failure);
-  }
-});
-calendar.render();
-
-function selectedDisciplines(){
-  return [...document.querySelectorAll('.d:checked')].map(el=>el.value).join(',');
-}
-function fetchEvents(){
-  const days = document.getElementById('days').value;
-  const url = `${WORKER_BASE}/events-syd?days=${encodeURIComponent(days)}&disciplines=${encodeURIComponent(selectedDisciplines())}&cb=${Date.now()}`;
-  return fetch(url, { cache:'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      rawItems = (data.items||[]);
-      return mapAndFilter(rawItems);
+    const cal = new FullCalendar.Calendar(document.getElementById('calendar'), {
+      initialView: 'dayGridMonth',
+      timeZone: 'Australia/Sydney',
+      headerToolbar: false,
+      height: 'auto',
+      dayMaxEventRows: 4,
+      navLinks: true,
+      nowIndicator: true,
+      eventTimeFormat: { hour: '2-digit', minute: '2-digit' },
+      events: (info, success, failure) => fetchEvents().then(success).catch(failure),
+      eventClassNames: (arg) => {
+        const d = (arg.event.extendedProps.discipline || '').toLowerCase();
+        return ['d-'+(d||'soft')];
+      },
+      eventContent: (arg) => {
+        const d = (arg.event.extendedProps.discipline || '').toLowerCase();
+        const map = { ai:'var(--ai)', cyber:'var(--cyber)', data:'var(--data)', cloud:'var(--cloud)', soft:'var(--soft)' };
+        const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:${map[d]||'var(--soft)'};margin-right:6px;vertical-align:1px"></span>`;
+        const title = `<span class="t">${dot}${arg.event.title}</span>`;
+        const loc = arg.event.extendedProps.location ? `<div class="s">${arg.event.extendedProps.location}</div>` : '';
+        return { html: `${title}${loc}` };
+      }
     });
-}
-function mapAndFilter(items){
-  const q = (document.getElementById('q').value || '').trim().toLowerCase();
-  const allowed = new Set(selectedDisciplines().split(',').filter(Boolean));
-  const filtered = items.filter(e => {
-    if (allowed.size && e.discipline && !allowed.has(e.discipline)) return false;
-    if (q) {
-      const blob = `${e.title||''} ${e.location||''}`.toLowerCase();
-      if (!blob.includes(q)) return false;
-    }
-    return true;
-  });
-  countEl.textContent = `${filtered.length} shown`;
-  return filtered.map(e => ({
-    title: e.title, start: e.start, end: e.end, url: e.url || null,
-    extendedProps: { source: e.source || '', location: e.location || '', discipline: e.discipline || '' }
-  }));
-}
+    cal.render();
 
-// UI
-document.getElementById('refresh').onclick = async () => {
-  const evts = await fetchEvents();
-  calendar.removeAllEvents(); calendar.addEventSource(evts);
-};
-document.getElementById('q').oninput = async () => {
-  calendar.removeAllEvents(); calendar.addEventSource(mapAndFilter(rawItems));
-};
-document.getElementById('view').onchange = (e) => calendar.changeView(e.target.value);
-document.getElementById('today').onclick = () => calendar.today();
-document.getElementById('prev').onclick = () => calendar.prev();
-document.getElementById('next').onclick = () => calendar.next();
-document.querySelectorAll('.d').forEach(cb => cb.onchange = () => document.getElementById('refresh').click());
-</script>
+    function selectedDisc(){ return [...document.querySelectorAll('.d:checked')].map(el=>el.value).join(','); }
+    function fetchEvents(){
+      const url = `${WORKER_BASE}/events-syd?days=90&disciplines=${encodeURIComponent(selectedDisc())}&cb=${Date.now()}`;
+      return fetch(url, { cache:'no-store' })
+        .then(r => r.json())
+        .then(data => (data.items||[]).map(e => ({
+          title:e.title, start:e.start, end:e.end, url:e.url||null,
+          extendedProps:{ source:e.source||'', location:e.location||'', discipline:e.discipline||'' }
+        })));
+    }
+
+    // Controls
+    document.getElementById('prev').onclick = () => cal.prev();
+    document.getElementById('today').onclick = () => cal.today();
+    document.getElementById('next').onclick = () => cal.next();
+    document.getElementById('view').onchange = e => cal.changeView(e.target.value);
+    document.querySelectorAll('.d').forEach(cb => cb.onchange = async () => {
+      const evts = await fetchEvents(); cal.removeAllEvents(); cal.addEventSource(evts);
+    });
+    document.getElementById('q').oninput = async (e) => {
+      const q = (e.target.value||'').toLowerCase();
+      const all = await fetchEvents();
+      const filtered = all.filter(ev => `${ev.title} ${ev.extendedProps.location}`.toLowerCase().includes(q));
+      cal.removeAllEvents(); cal.addEventSource(filtered);
+    };
+  </script>
 </body>
 </html>
-
