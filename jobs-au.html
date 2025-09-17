@@ -4,34 +4,43 @@
 <meta charset="utf-8" />
 <title>AU Tech Jobs — IAT Digital</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- Early theme/embed/auto boot (runs before CSS to avoid flash) -->
+<script>
+(function(){
+  try{
+    var q = new URLSearchParams(location.search);
+    var theme = q.get("theme");           // "light" | "dark"
+    var embed = q.get("embed");           // "1" to compact for iframes
+    var auto  = q.get("auto");            // "1" or "0"
+    var iv    = q.get("interval");        // ms, e.g. 300000
+
+    if (theme) localStorage.setItem("jobs_theme", theme);
+    var savedTheme = theme || localStorage.getItem("jobs_theme") || "light";
+    document.documentElement.setAttribute("data-theme", savedTheme === "dark" ? "dark" : "light");
+
+    if (embed === "1") document.documentElement.setAttribute("data-embed","1");
+    if (iv)  localStorage.setItem("jobs_auto_iv", iv);
+    if (auto === "1" || auto === "0") localStorage.setItem("jobs_auto_on", auto);
+  }catch(e){}
+})();
+</script>
+
 <style>
   :root{
     /* Light theme (default) */
-    --bg:#f7f9fc;            /* page background */
-    --surface:#ffffff;       /* header/controls blocks */
-    --card:#ffffff;          /* card background */
-    --border:#e6e9ef;        /* subtle borders */
-    --text:#111827;          /* primary text */
-    --muted:#6b7280;         /* secondary text */
-    --link:#2563eb;          /* link / focus */
-    --accent-1:#60a5fa;      /* gradient left */
-    --accent-2:#a78bfa;      /* gradient right */
+    --bg:#f7f9fc; --surface:#ffffff; --card:#ffffff; --border:#e6e9ef;
+    --text:#111827; --muted:#6b7280; --link:#2563eb;
+    --accent-1:#60a5fa; --accent-2:#a78bfa;
     --ok:#059669; --warn:#b45309; --err:#b91c1c;
     --radius-lg:14px; --radius-md:12px; --radius-sm:10px;
     --shadow:0 6px 20px rgba(17,24,39,.06);
     --ring: 0 0 0 3px rgba(37,99,235,.15);
   }
-  /* Dark theme overrides */
   [data-theme="dark"]{
-    --bg:#0b1220;
-    --surface:#0e1629;
-    --card:#0f172a;
-    --border:#22314b;
-    --text:#e9eef7;
-    --muted:#a9b4c6;
-    --link:#9cc4ff;
-    --accent-1:#4f8cff;
-    --accent-2:#8b5cf6;
+    --bg:#0b1220; --surface:#0e1629; --card:#0f172a; --border:#22314b;
+    --text:#e9eef7; --muted:#a9b4c6; --link:#9cc4ff;
+    --accent-1:#4f8cff; --accent-2:#8b5cf6;
     --ok:#23d18b; --warn:#ffd27a; --err:#ff9b9b;
     --shadow:0 6px 20px rgba(0,0,0,.25);
     --ring: 0 0 0 3px rgba(156,196,255,.20);
@@ -59,7 +68,7 @@
 
   /* Header */
   header{
-    position:sticky;top:0;z-index:20;
+    position:sticky; top:0; z-index:20;
     background:linear-gradient(180deg,var(--surface),rgba(255,255,255,.92));
     border-bottom:1px solid var(--border);
     backdrop-filter:saturate(130%) blur(6px);
@@ -67,6 +76,11 @@
   [data-theme="dark"] header{
     background:linear-gradient(180deg,var(--surface),rgba(14,22,41,.92));
   }
+  /* Compact header for embeds */
+  [data-embed] header{ position:static; backdrop-filter:none; }
+  [data-embed] .wrap{ padding:12px 12px; }
+  [data-embed] .bar{ display:none; }
+
   .wrap{max-width:1160px;margin:0 auto;padding:18px 16px}
   .brand{display:flex;align-items:center;gap:12px}
   .logo{
@@ -96,7 +110,6 @@
     background:linear-gradient(180deg,#3b82f6,#2563eb);
     border-color:#1d4ed8;color:#fff;box-shadow:var(--shadow)
   }
-  .btn-primary:hover{filter:saturate(105%) brightness(1.02)}
   .btn-ghost{background:var(--surface)}
   .chiprow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
   .chip{
@@ -270,11 +283,10 @@ const $lastRef  = document.getElementById("lastRef");
 let autoTimer = null;
 let isLoading = false;
 
-/* ---- Theme persistence ---- */
+/* ---- Theme ---- */
 (function initTheme(){
-  const saved = localStorage.getItem("jobs_theme") || "light";
-  document.documentElement.setAttribute("data-theme", saved === "dark" ? "dark" : "light");
-  $themeTgl.checked = saved === "dark";
+  const mode = document.documentElement.getAttribute("data-theme") || "light";
+  $themeTgl.checked = (mode === "dark");
 })();
 $themeTgl.addEventListener("change", ()=>{
   const mode = $themeTgl.checked ? "dark" : "light";
@@ -282,16 +294,16 @@ $themeTgl.addEventListener("change", ()=>{
   localStorage.setItem("jobs_theme", mode);
 });
 
-/* ---- Auto refresh persistence ---- */
+/* ---- Auto refresh ---- */
 (function initAuto(){
-  const savedOn = localStorage.getItem("jobs_auto_on");
   const savedIv = localStorage.getItem("jobs_auto_iv");
   if (savedIv) $interval.value = String(savedIv);
+  const savedOn = localStorage.getItem("jobs_auto_on");
   $autoTgl.checked = savedOn === "1";
   if ($autoTgl.checked) startAuto();
 })();
 $autoTgl.addEventListener("change", ()=>{ $autoTgl.checked ? startAuto() : stopAuto(); });
-$interval.addEventListener("change", ()=>{ localStorage.setItem("jobs_auto_iv", $interval.value); if ($autoTgl.checked) { startAuto(); } });
+$interval.addEventListener("change", ()=>{ localStorage.setItem("jobs_auto_iv", $interval.value); if ($autoTgl.checked) startAuto(); });
 
 function startAuto(){
   stopAuto();
@@ -432,10 +444,7 @@ async function load(quiet=false){
 
     items = sortItems(items);
 
-    // Render
-    if (!quiet) $grid.innerHTML = '';
-    else $grid.innerHTML = ''; // replace on auto too, to avoid dupes
-
+    $grid.innerHTML = ''; // replace results
     const count = items.length;
     const terms = [$preset.value ? 'Preset' : null, $search.value.trim() ? 'Keywords' : null].filter(Boolean).join(' + ');
     $summary.textContent = `${count} job${count!==1?'s':''} ${terms ? '• ' + terms : ''}`;
@@ -478,14 +487,15 @@ async function load(quiet=false){
 
 function escapeHTML(s){return (s||"").replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]))}
 
-/* ---- Kick things off: load once and (optionally) auto-refresh ---- */
+/* ---- Initial load + auto ---- */
 window.addEventListener("load", ()=>{
-  load(false); // initial auto-fetch on page load (you asked to enable auto refresh)
+  load(false); // initial fetch
   if ($autoTgl.checked) startAuto();
 });
 </script>
 </body>
 </html>
+
 
 
 
